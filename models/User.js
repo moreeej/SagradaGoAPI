@@ -12,6 +12,11 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    uid:{
+      type: String,
+      required: true,
+      unique: true
+    },
     first_name: {
       type: String,
       required: true,

@@ -6,6 +6,7 @@ const UserController = require("../controllers/UserController");
 
 
 router.post("/createUser", UserController.createUser);
+router.post("/findUser", UserController.findUser)
 
 
 
