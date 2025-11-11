@@ -1,7 +1,8 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
 
-const UserSchema = new mongoose.Schema(
+const mongoose = require("mongoose");
+
+
+const AdminSchema = new mongoose.Schema(
   {
     email: {
       type: String,
@@ -28,33 +29,31 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    gender: {
-      type: String,
-      required: true,
-    },
     contact_number: {
       type: String,
       required: true,
-    },
-    civil_status: {
-      type: String,
     },
     birthday: {
       type: Date,
       required: true,
     },
-    is_deleted:{
+    profile_image: {
+      type: String,
+    },
+    is_deleted: {
       type: Boolean,
       default: false
     },
-    is_admin:{
+     is_admin:{
       type: Boolean,
-      default: false
+      default: true
     }
   },
   { timestamps: true }
 );
 
 
-const UserModel = mongoose.model("Users", UserSchema);
-module.exports = UserModel;
+
+
+const AdminModel = mongoose.model("Admins", AdminSchema);
+module.exports = AdminModel;

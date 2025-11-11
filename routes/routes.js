@@ -2,11 +2,15 @@ const express = require("express");
 const router = express.Router();
 
 const UserController = require("../controllers/UserController");
-
+const AdminController = require("../controllers/AdminController")
 
 
 router.post("/createUser", UserController.createUser);
 router.post("/findUser", UserController.findUser)
+
+
+router.post("/createAdmin", AdminController.addAdmin)
+router.post("/findAdmin", AdminController.findAdmin)
 
 
 

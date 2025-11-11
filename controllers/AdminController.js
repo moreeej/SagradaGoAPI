@@ -1,17 +1,15 @@
-const UserModel = require("../models/User")
-
+const AdminModel = require("../models/Admin");
 const bcrypt = require("bcrypt");
 
-async function createUser(req, res) {
+async function addAdmin(req, res) {
   try {
     const { 
       first_name, 
       middle_name, 
       last_name, 
-      gender, 
       contact_number, 
-      civil_status, 
       birthday, 
+      profile,
       email, 
       password,
       uid
@@ -28,24 +26,23 @@ async function createUser(req, res) {
     const hashedPassword = await bcrypt.hash(password, 10);
     // console.log(hashedPassword);
     
-    const newUser = new UserModel({
+    const newAdmin = new AdminModel({
       first_name,
       middle_name,
       last_name,
-      gender,
       contact_number,
-      civil_status,
       birthday,
+      profile,
       email,
       password: hashedPassword,
       uid
     });
 
-    await newUser.save();
+    await newAdmin.save();
 
     res.json({
-      message: "User created successfully.",
-      newUser
+      message: "Admin created successfully.",
+      newAdmin
     });
 
   } catch (err) {
@@ -55,20 +52,18 @@ async function createUser(req, res) {
 }
 
 
-
-
-async function findUser(req, res) {
+async function findAdmin(req, res) {
   try {
     const { uid } = req.body;
 
-    const user = await UserModel.findOne({ uid });
+    const user = await AdminModel.findOne({ uid });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(404).json({ message: "Failed to find your account." });
     }
-    
+
     res.status(200).json({
-      message: "User found successfully.",
+      message: "Admin found successfully.",
       user,
     });
   } catch (err) {
@@ -77,5 +72,4 @@ async function findUser(req, res) {
   }
 }
 
-
-module.exports = { createUser, findUser }
+module.exports = { addAdmin, findAdmin }
