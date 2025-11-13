@@ -54,9 +54,6 @@ async function createUser(req, res) {
   }
 }
 
-
-
-
 async function findUser(req, res) {
   try {
     const { uid } = req.body;
@@ -77,5 +74,48 @@ async function findUser(req, res) {
   }
 }
 
+async function login(req, res) {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required." });
+    }
+
+    const user = await UserModel.findOne({ email, is_deleted: false });
+
+    if (!user) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    const userData = {
+      uid: user.uid,
+      email: user.email,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      gender: user.gender,
+      contact_number: user.contact_number,
+      civil_status: user.civil_status,
+      birthday: user.birthday,
+      is_admin: user.is_admin
+    };
+
+    res.status(200).json({
+      message: "Login successful.",
+      user: userData,
+    });
+    
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
 
 module.exports = { createUser, findUser }
