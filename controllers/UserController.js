@@ -118,4 +118,4 @@ async function login(req, res) {
   }
 }
 
-module.exports = { createUser, findUser }
+module.exports = { createUser, findUser, login }
