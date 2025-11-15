@@ -6,7 +6,7 @@ async function createUser(req, res) {
   try {
     const { 
       first_name, 
-      // middle_name, 
+      middle_name, 
       last_name, 
       gender, 
       contact_number, 
@@ -30,7 +30,7 @@ async function createUser(req, res) {
     
     const newUser = new UserModel({
       first_name,
-      // middle_name,
+      middle_name,
       last_name,
       gender,
       contact_number,
@@ -98,7 +98,7 @@ async function login(req, res) {
       uid: user.uid,
       email: user.email,
       first_name: user.first_name,
-      // middle_name: user.middle_name,
+      middle_name: user.middle_name,
       last_name: user.last_name,
       gender: user.gender,
       contact_number: user.contact_number,
