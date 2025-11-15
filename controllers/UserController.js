@@ -118,4 +118,15 @@ async function login(req, res) {
   }
 }
 
+async function getAllUsers(req, res) {
+  try {
+    const users = await UserModel.find({});
+    return res.json(users);
+  } catch (err) {
+    console.error("Error:", err);
+    return res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+
 module.exports = { createUser, findUser, login }
