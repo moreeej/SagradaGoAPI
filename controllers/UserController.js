@@ -104,7 +104,7 @@ async function login(req, res) {
       contact_number: user.contact_number,
       civil_status: user.civil_status,
       birthday: user.birthday,
-      is_admin: user.is_admin
+      is_priest: user.is_priest
     };
 
     res.status(200).json({
