@@ -9,6 +9,8 @@ router.post("/createUser", UserController.createUser);
 router.post("/findUser", UserController.findUser)
 router.post("/login", UserController.login)
 router.get("/getAllUsers", UserController.getAllUsers)
+router.post("/checkEmail", UserController.checkEmailExists)
+router.post("/checkContact", UserController.checkContactExists)
 
 
 router.post("/createAdmin", AdminController.addAdmin)

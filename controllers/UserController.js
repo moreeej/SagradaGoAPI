@@ -128,5 +128,50 @@ async function getAllUsers(req, res) {
   }
 }
 
+async function checkEmailExists(req, res) {
+  try {
+    const { email } = req.body;
 
-module.exports = { createUser, findUser, login, getAllUsers }
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    const user = await UserModel.findOne({ 
+      email: email.trim().toLowerCase(),
+      is_deleted: false 
+    });
+
+    return res.status(200).json({ 
+      exists: !!user,
+      message: user ? "Email already exists." : "Email is available."
+    });
+  } catch (err) {
+    console.error("Error:", err);
+    return res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+async function checkContactExists(req, res) {
+  try {
+    const { contact_number } = req.body;
+
+    if (!contact_number) {
+      return res.status(400).json({ message: "Contact number is required." });
+    }
+
+    const user = await UserModel.findOne({ 
+      contact_number: contact_number.trim(),
+      is_deleted: false 
+    });
+
+    return res.status(200).json({ 
+      exists: !!user,
+      message: user ? "Contact number already exists." : "Contact number is available."
+    });
+  } catch (err) {
+    console.error("Error:", err);
+    return res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists }
