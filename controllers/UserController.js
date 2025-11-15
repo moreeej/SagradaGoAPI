@@ -129,4 +129,4 @@ async function getAllUsers(req, res) {
 }
 
 
-module.exports = { createUser, findUser, login }
+module.exports = { createUser, findUser, login, getAllUsers }

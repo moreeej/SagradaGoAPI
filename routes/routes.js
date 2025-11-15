@@ -8,6 +8,7 @@ const AdminController = require("../controllers/AdminController")
 router.post("/createUser", UserController.createUser);
 router.post("/findUser", UserController.findUser)
 router.post("/login", UserController.login)
+router.get("/getAllUsers", UserController.getAllUsers)
 
 
 router.post("/createAdmin", AdminController.addAdmin)
