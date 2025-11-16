@@ -11,7 +11,7 @@ router.post("/login", UserController.login)
 router.get("/getAllUsers", UserController.getAllUsers)
 router.post("/checkEmail", UserController.checkEmailExists)
 router.post("/checkContact", UserController.checkContactExists)
-
+router.put("/updateUser", UserController.updateUser)
 
 router.post("/createAdmin", AdminController.addAdmin)
 router.post("/findAdmin", AdminController.findAdmin)

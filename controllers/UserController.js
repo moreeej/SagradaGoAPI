@@ -174,4 +174,98 @@ async function checkContactExists(req, res) {
   }
 }
 
-module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists }
+async function updateUser(req, res) {
+  try {
+    const { uid } = req.body;
+    const {
+      first_name,
+      middle_name,
+      last_name,
+      gender,
+      contact_number,
+      civil_status,
+      birthday,
+      email,
+    } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (email && email.trim().toLowerCase() !== user.email) {
+      const existingEmail = await UserModel.findOne({
+        email: email.trim().toLowerCase(),
+        is_deleted: false,
+        uid: { $ne: uid }
+      });
+
+      if (existingEmail) {
+        return res.status(409).json({ message: "Email already exists. Please use a different email." });
+      }
+    }
+
+    if (contact_number && contact_number.trim() !== user.contact_number) {
+      const existingContact = await UserModel.findOne({
+        contact_number: contact_number.trim(),
+        is_deleted: false,
+        uid: { $ne: uid }
+      });
+
+      if (existingContact) {
+        return res.status(409).json({ message: "Contact number already exists. Please use a different contact number." });
+      }
+    }
+
+    if (first_name !== undefined) user.first_name = first_name;
+    if (middle_name !== undefined) user.middle_name = middle_name;
+    if (last_name !== undefined) user.last_name = last_name;
+    if (gender !== undefined) user.gender = gender;
+    if (contact_number !== undefined) user.contact_number = contact_number.trim();
+    if (civil_status !== undefined) user.civil_status = civil_status;
+    if (birthday !== undefined) user.birthday = birthday;
+    if (email !== undefined) user.email = email.trim().toLowerCase();
+
+    await user.save();
+
+    const updatedUserData = {
+      uid: user.uid,
+      email: user.email,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      gender: user.gender,
+      contact_number: user.contact_number,
+      civil_status: user.civil_status,
+      birthday: user.birthday,
+      is_priest: user.is_priest
+    };
+
+    res.status(200).json({
+      message: "Profile updated successfully.",
+      user: updatedUserData,
+    });
+
+  } catch (err) {
+    console.error("Error:", err);
+
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern)[0];
+      if (field === 'email') {
+        return res.status(409).json({ message: "Email already exists. Please use a different email." });
+        
+      } else if (field === 'contact_number') {
+        return res.status(409).json({ message: "Contact number already exists. Please use a different contact number." });
+      }
+    }
+
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser }
