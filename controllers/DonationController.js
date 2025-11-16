@@ -1,4 +1,5 @@
 const UserModel = require("../models/User");
+const DonationModel = require("../models/Donation");
 
 async function createDonation(req, res) {
   try {
@@ -29,21 +30,37 @@ async function createDonation(req, res) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    const newDonation = {
+    const userName = [user.first_name, user.middle_name, user.last_name]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    const donationData = {
       amount: parseFloat(amount),
       paymentMethod,
       intercession: intercession || "",
       status: "pending",
     };
 
-    user.donations.push(newDonation);
+    user.donations.push(donationData);
     await user.save();
+    const userDonation = user.donations[user.donations.length - 1];
 
-    const savedDonation = user.donations[user.donations.length - 1];
+    const newDonation = new DonationModel({
+      user_id: uid,
+      user_name: userName,
+      user_email: user.email,
+      amount: parseFloat(amount),
+      paymentMethod,
+      intercession: intercession || "",
+      status: "pending",
+    });
+
+    await newDonation.save();
 
     res.status(201).json({
       message: "Donation created successfully.",
-      donation: savedDonation,
+      donation: userDonation, 
     });
 
   } catch (err) {
@@ -51,7 +68,6 @@ async function createDonation(req, res) {
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
-
 
 async function getUserDonations(req, res) {
   try {
@@ -129,53 +145,9 @@ async function getDonationStats(req, res) {
   }
 }
 
-async function updateDonationStatus(req, res) {
-  try {
-    const { uid, donationId, status } = req.body;
-
-    if (!uid || !donationId || !status) {
-      return res.status(400).json({ 
-        message: "User ID, donation ID, and status are required." 
-      });
-    }
-
-    const validStatuses = ["pending", "confirmed", "cancelled"];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        message: `Status must be one of: ${validStatuses.join(", ")}` 
-      });
-    }
-
-    const user = await UserModel.findOne({ uid, is_deleted: false });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
-
-    const donation = user.donations.id(donationId);
-
-    if (!donation) {
-      return res.status(404).json({ message: "Donation not found." });
-    }
-
-    donation.status = status;
-    await user.save();
-
-    res.status(200).json({
-      message: "Donation status updated successfully.",
-      donation,
-    });
-
-  } catch (err) {
-    console.error("Error updating donation status:", err);
-    res.status(500).json({ message: "Server error. Please try again later." });
-  }
-}
-
 module.exports = {
   createDonation,
   getUserDonations,
   getDonationStats,
-  updateDonationStatus,
 };
 

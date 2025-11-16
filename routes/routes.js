@@ -4,6 +4,7 @@ const router = express.Router();
 const UserController = require("../controllers/UserController");
 const AdminController = require("../controllers/AdminController")
 const DonationController = require("../controllers/DonationController")
+const AdminDonationController = require("../controllers/AdminDonationController");
 
 // User routes
 router.post("/createUser", UserController.createUser);
@@ -18,10 +19,16 @@ router.put("/updateUser", UserController.updateUser)
 router.post("/createAdmin", AdminController.addAdmin)
 router.post("/findAdmin", AdminController.findAdmin)
 
-// Donation routes
+// Donation routes (user)
 router.post("/createDonation", DonationController.createDonation);
 router.post("/getUserDonations", DonationController.getUserDonations);
 router.post("/getDonationStats", DonationController.getDonationStats);
-router.put("/updateDonationStatus", DonationController.updateDonationStatus);
+
+// Admin donation routes
+router.get("/admin/getAllDonations", AdminDonationController.getAllDonations);
+router.get("/admin/getDonation/:donationId", AdminDonationController.getDonationById);
+router.put("/admin/updateDonationStatus", AdminDonationController.updateDonationStatus);
+router.get("/admin/getDonationsByUser/:userId", AdminDonationController.getDonationsByUser);
+router.get("/admin/getDonationStatistics", AdminDonationController.getDonationStatistics);
 
 module.exports = router;  
