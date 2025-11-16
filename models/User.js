@@ -1,6 +1,32 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 
+// Donation subdocument schema
+const DonationSchema = new mongoose.Schema(
+  {
+    amount: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    paymentMethod: {
+      type: String,
+      required: true,
+      enum: ["GCash", "Cash", "In Kind"],
+    },
+    intercession: {
+      type: String,
+      default: "",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "confirmed", "cancelled"],
+      default: "pending",
+    },
+  },
+  { timestamps: true }
+);
+
 const UserSchema = new mongoose.Schema(
   {
     email: {
@@ -50,7 +76,11 @@ const UserSchema = new mongoose.Schema(
     is_priest:{
       type: Boolean,
       default: false
-    }
+    },
+    donations: {
+      type: [DonationSchema],
+      default: [],
+    },
   },
   { timestamps: true }
 );
