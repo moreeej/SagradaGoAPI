@@ -1,15 +1,9 @@
 const UserModel = require("../models/User");
 
-/**
- * Create a new donation for a user
- * POST /api/createDonation
- * Body: { uid, amount, paymentMethod, intercession (optional) }
- */
 async function createDonation(req, res) {
   try {
     const { uid, amount, paymentMethod, intercession } = req.body;
 
-    // Validate required fields
     if (!uid) {
       return res.status(400).json({ message: "User ID (uid) is required." });
     }
@@ -22,7 +16,6 @@ async function createDonation(req, res) {
       return res.status(400).json({ message: "Payment method is required." });
     }
 
-    // Validate payment method
     const validPaymentMethods = ["GCash", "Cash", "In Kind"];
     if (!validPaymentMethods.includes(paymentMethod)) {
       return res.status(400).json({ 
@@ -30,7 +23,6 @@ async function createDonation(req, res) {
       });
     }
 
-    // Find the user
     const user = await UserModel.findOne({ uid, is_deleted: false });
 
     if (!user) {
@@ -60,11 +52,7 @@ async function createDonation(req, res) {
   }
 }
 
-/**
- * Get all donations for a user
- * POST /api/getUserDonations
- * Body: { uid }
- */
+
 async function getUserDonations(req, res) {
   try {
     const { uid } = req.body;
@@ -96,11 +84,6 @@ async function getUserDonations(req, res) {
   }
 }
 
-/**
- * Get donation statistics for a user (total amount, count, etc.)
- * POST /api/getDonationStats
- * Body: { uid }
- */
 async function getDonationStats(req, res) {
   try {
     const { uid } = req.body;
@@ -146,11 +129,6 @@ async function getDonationStats(req, res) {
   }
 }
 
-/**
- * Update donation status (for admin use)
- * PUT /api/updateDonationStatus
- * Body: { uid, donationId, status }
- */
 async function updateDonationStatus(req, res) {
   try {
     const { uid, donationId, status } = req.body;
