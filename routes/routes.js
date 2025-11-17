@@ -5,6 +5,8 @@ const UserController = require("../controllers/UserController");
 const AdminController = require("../controllers/AdminController")
 const DonationController = require("../controllers/DonationController")
 const AdminDonationController = require("../controllers/AdminDonationController");
+const WeddingController = require("../controllers/WeddingController");
+const CommunionController = require("../controllers/CommunionController");
 
 // User routes
 router.post("/createUser", UserController.createUser);
@@ -39,5 +41,14 @@ router.put("/updateWeddingStatus", WeddingController.updateWeddingStatus);
 
 // Wedding routes (admin)
 router.get("/admin/getAllWeddings", WeddingController.getAllWeddings);
+
+// Communion routes (user)
+router.post("/createCommunion", CommunionController.createCommunion);
+router.post("/getUserCommunions", CommunionController.getUserCommunions);
+router.post("/getCommunion", CommunionController.getCommunion);
+router.put("/updateCommunionStatus", CommunionController.updateCommunionStatus);
+
+// Communion routes (admin)
+router.get("/admin/getAllCommunions", CommunionController.getAllCommunions);
 
 module.exports = router;  
