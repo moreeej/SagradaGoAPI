@@ -7,6 +7,7 @@ const DonationController = require("../controllers/DonationController")
 const AdminDonationController = require("../controllers/AdminDonationController");
 const WeddingController = require("../controllers/WeddingController");
 const CommunionController = require("../controllers/CommunionController");
+const NotificationController = require("../controllers/NotificationController");
 
 // User routes
 router.post("/createUser", UserController.createUser);
@@ -50,5 +51,13 @@ router.put("/updateCommunionStatus", CommunionController.updateCommunionStatus);
 
 // Communion routes (admin)
 router.get("/admin/getAllCommunions", CommunionController.getAllCommunions);
+
+// Notification routes (for both users and admins)
+router.post("/createNotification", NotificationController.createNotification);
+router.post("/getNotifications", NotificationController.getNotifications);
+router.post("/markAsRead", NotificationController.markAsRead);
+router.post("/markAllAsRead", NotificationController.markAllAsRead);
+router.post("/deleteNotification", NotificationController.deleteNotification);
+router.post("/getUnreadCount", NotificationController.getUnreadCount);
 
 module.exports = router;  
