@@ -31,4 +31,13 @@ router.put("/admin/updateDonationStatus", AdminDonationController.updateDonation
 router.get("/admin/getDonationsByUser/:userId", AdminDonationController.getDonationsByUser);
 router.get("/admin/getDonationStatistics", AdminDonationController.getDonationStatistics);
 
+// Wedding routes (user)
+router.post("/createWedding", WeddingController.createWedding);
+router.post("/getUserWeddings", WeddingController.getUserWeddings);
+router.post("/getWedding", WeddingController.getWedding);
+router.put("/updateWeddingStatus", WeddingController.updateWeddingStatus);
+
+// Wedding routes (admin)
+router.get("/admin/getAllWeddings", WeddingController.getAllWeddings);
+
 module.exports = router;  
