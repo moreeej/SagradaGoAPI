@@ -2,6 +2,10 @@ const mongoose = require("mongoose");
 
 const WeddingSchema = new mongoose.Schema(
   {
+    transaction_id: {
+      type: String,
+      required: true,
+    },
     date: {
       type: Date,
       required: true,
