@@ -2,23 +2,23 @@ const mongoose = require("mongoose");
 
 const AnointingSchema = mongoose.Schema(
   {
-    transaction_id: {
+    transaction_id:{
       type: String,
       required: true,
     },
-    date: {
+    date:{
       type: Date,
       required: true,
     },
-    time: {
+    time:{
       type: String,
       required: true,
     },
-    attendees: {
+    attendees:{
       type: Number,
       required: true,
     },
-    status: {
+    status:{
       type: String,
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
