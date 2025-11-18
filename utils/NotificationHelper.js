@@ -88,7 +88,7 @@ async function notifyAllAdmins(adminIds, type, title, message, options = {}) {
     adminIds.map((adminId) =>
       createNotification({
         recipient_id: adminId,
-        recipient_type: "admin", // All are admins
+        recipient_type: "admin", 
         type,
         title,
         message,
