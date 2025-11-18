@@ -72,7 +72,7 @@ async function notifyUser(userId, type, title, message, options = {}) {
 async function notifyAdmin(adminId, type, title, message, options = {}) {
   return createNotification({
     recipient_id: adminId,
-    recipient_type: "admin", // Specify "admin"
+    recipient_type: "admin", 
     type,
     title,
     message,
