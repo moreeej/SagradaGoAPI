@@ -23,6 +23,11 @@ const DonationSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
     },
+    donation_id: {
+      type: String,
+      // Reference to the main Donation collection _id
+      // This links the user's donation subdocument to the main donation record
+    },
   },
   { timestamps: true }
 );

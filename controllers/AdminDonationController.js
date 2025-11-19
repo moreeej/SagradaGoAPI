@@ -118,28 +118,44 @@ async function updateDonationStatus(req, res) {
     donation.status = status;
     await donation.save();
 
-    // Also update in User's donations subcollection
+    // Also update in User's donations subcollection using donation_id reference
     const user = await UserModel.findOne({ 
       uid: donation.user_id, 
       is_deleted: false 
     });
 
     if (user) {
-      // Find the matching donation in user's subcollection by amount, paymentMethod, and createdAt
-      // We'll match by finding donations with same amount and paymentMethod created around the same time
+      // Find the matching donation in user's subcollection using donation_id
+      // This is more reliable than time-based matching
       const userDonation = user.donations.find((d) => {
-        const donationDate = new Date(donation.createdAt);
-        const userDonationDate = new Date(d.createdAt);
-        const timeDiff = Math.abs(donationDate - userDonationDate);
-        
-        return (
-          d.amount === donation.amount &&
-          d.paymentMethod === donation.paymentMethod &&
-          timeDiff < 60000 // Within 1 minute (to handle slight timing differences)
-        );
+        return d.donation_id && d.donation_id.toString() === donation._id.toString();
       });
 
-      if (userDonation) {
+      // If donation_id is not found, fallback to matching by amount, paymentMethod, and createdAt
+      // (for older donations that might not have donation_id)
+      if (!userDonation) {
+        const donationDate = new Date(donation.createdAt);
+        const matchingDonation = user.donations.find((d) => {
+          const userDonationDate = new Date(d.createdAt);
+          const timeDiff = Math.abs(donationDate - userDonationDate);
+          
+          return (
+            d.amount === donation.amount &&
+            d.paymentMethod === donation.paymentMethod &&
+            timeDiff < 60000 // Within 1 minute (to handle slight timing differences)
+          );
+        });
+        
+        if (matchingDonation) {
+          matchingDonation.status = status;
+          // Also add donation_id reference for future updates
+          if (!matchingDonation.donation_id) {
+            matchingDonation.donation_id = donation._id.toString();
+          }
+          await user.save();
+        }
+      } else {
+        // Update status using donation_id reference
         userDonation.status = status;
         await user.save();
       }
