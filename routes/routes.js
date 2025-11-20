@@ -8,6 +8,7 @@ const AdminDonationController = require("../controllers/AdminDonationController"
 const WeddingController = require("../controllers/WeddingController");
 const CommunionController = require("../controllers/CommunionController");
 const NotificationController = require("../controllers/NotificationController");
+const VolunteerController = require("../controllers/VolunteerController");
 
 // User routes
 router.post("/createUser", UserController.createUser);
@@ -59,5 +60,10 @@ router.post("/markAsRead", NotificationController.markAsRead);
 router.post("/markAllAsRead", NotificationController.markAllAsRead);
 router.post("/deleteNotification", NotificationController.deleteNotification);
 router.post("/getUnreadCount", NotificationController.getUnreadCount);
+
+// Volunteer routes
+router.post("/getEventVolunteers", VolunteerController.getEventVolunteers);
+router.post("/getUserVolunteers", VolunteerController.getUserVolunteers);
+router.put("/updateVolunteerStatus", VolunteerController.updateVolunteerStatus);
 
 module.exports = router;  
