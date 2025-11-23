@@ -288,7 +288,8 @@ async function createUser(req, res) {
       birthday, 
       email, 
       password,
-      uid
+      uid,
+      is_priest
     } = req.body;
 
     // Validate required fields
@@ -328,7 +329,8 @@ async function createUser(req, res) {
       birthday,
       email: email.trim().toLowerCase(),
       password: hashedPassword,
-      uid
+      uid,
+      is_priest: is_priest || false
     });
 
     await newUser.save();
@@ -458,11 +460,68 @@ async function login(req, res) {
 
 async function getAllUsers(req, res) {
   try {
-    const users = await UserModel.find({});
-    return res.json(users);
+    const users = await UserModel.find({ is_deleted: false });
+    const usersData = users.map(user => ({
+      uid: user.uid,
+      email: user.email,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      contact_number: user.contact_number,
+      birthday: user.birthday,
+      is_priest: user.is_priest,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    }));
+    return res.json(usersData);
   } catch (err) {
     console.error("Error:", err);
     return res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+async function updateUserRole(req, res) {
+  try {
+    const { uid, is_priest } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    if (typeof is_priest !== 'boolean') {
+      return res.status(400).json({ message: "is_priest must be a boolean value." });
+    }
+
+    // Find the user
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Update is_priest field
+    user.is_priest = is_priest;
+    await user.save();
+
+    const updatedUserData = {
+      uid: user.uid,
+      email: user.email,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      contact_number: user.contact_number,
+      birthday: user.birthday,
+      is_priest: user.is_priest,
+    };
+
+    res.status(200).json({
+      message: `User role updated successfully. User is now ${is_priest ? 'a priest' : 'a regular user'}.`,
+      user: updatedUserData,
+    });
+
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
@@ -524,6 +583,7 @@ async function updateUser(req, res) {
       // civil_status,
       birthday,
       email,
+      is_priest,
     } = req.body;
 
     if (!uid) {
@@ -572,6 +632,7 @@ async function updateUser(req, res) {
     // if (civil_status !== undefined) user.civil_status = civil_status;
     if (birthday !== undefined) user.birthday = birthday;
     if (email !== undefined) user.email = email.trim().toLowerCase();
+    if (is_priest !== undefined) user.is_priest = is_priest;
 
     await user.save();
 
@@ -680,4 +741,4 @@ async function addVolunteer(req, res) {
   }
 }
 
-module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer }
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole }

@@ -18,6 +18,8 @@ router.get("/getAllUsers", UserController.getAllUsers)
 router.post("/checkEmail", UserController.checkEmailExists)
 router.post("/checkContact", UserController.checkContactExists)
 router.put("/updateUser", UserController.updateUser)
+router.post("/addVolunteer", UserController.addVolunteer)
+router.put("/updateUserRole", UserController.updateUserRole)
 
 // Admin routes
 router.post("/createAdmin", AdminController.addAdmin)
