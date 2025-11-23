@@ -282,9 +282,9 @@ async function createUser(req, res) {
       first_name, 
       middle_name, 
       last_name, 
-      gender, 
+      // gender, 
       contact_number, 
-      civil_status, 
+      // civil_status, 
       birthday, 
       email, 
       password,
@@ -322,9 +322,9 @@ async function createUser(req, res) {
       first_name,
       middle_name,
       last_name,
-      gender,
+      // gender,
       contact_number: contact_number.trim(),
-      civil_status,
+      // civil_status,
       birthday,
       email: email.trim().toLowerCase(),
       password: hashedPassword,
@@ -339,9 +339,9 @@ async function createUser(req, res) {
       first_name: newUser.first_name,
       middle_name: newUser.middle_name,
       last_name: newUser.last_name,
-      gender: newUser.gender,
+      // gender: newUser.gender,
       contact_number: newUser.contact_number,
-      civil_status: newUser.civil_status,
+      // civil_status: newUser.civil_status,
       birthday: newUser.birthday,
       is_priest: newUser.is_priest,
       volunteers: [] // New users have no volunteers yet
@@ -390,9 +390,9 @@ async function findUser(req, res) {
       first_name: user.first_name,
       middle_name: user.middle_name,
       last_name: user.last_name,
-      gender: user.gender,
+      // gender: user.gender,
       contact_number: user.contact_number,
-      civil_status: user.civil_status,
+      // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
       volunteers: userVolunteers || []
@@ -437,9 +437,9 @@ async function login(req, res) {
       first_name: user.first_name,
       middle_name: user.middle_name,
       last_name: user.last_name,
-      gender: user.gender,
+      // gender: user.gender,
       contact_number: user.contact_number,
-      civil_status: user.civil_status,
+      // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
       volunteers: userVolunteers || []
@@ -519,9 +519,9 @@ async function updateUser(req, res) {
       first_name,
       middle_name,
       last_name,
-      gender,
+      // gender,
       contact_number,
-      civil_status,
+      // civil_status,
       birthday,
       email,
     } = req.body;
@@ -567,9 +567,9 @@ async function updateUser(req, res) {
     if (first_name !== undefined) user.first_name = first_name;
     if (middle_name !== undefined) user.middle_name = middle_name;
     if (last_name !== undefined) user.last_name = last_name;
-    if (gender !== undefined) user.gender = gender;
+    // if (gender !== undefined) user.gender = gender;
     if (contact_number !== undefined) user.contact_number = contact_number.trim();
-    if (civil_status !== undefined) user.civil_status = civil_status;
+    // if (civil_status !== undefined) user.civil_status = civil_status;
     if (birthday !== undefined) user.birthday = birthday;
     if (email !== undefined) user.email = email.trim().toLowerCase();
 
@@ -584,9 +584,9 @@ async function updateUser(req, res) {
       first_name: user.first_name,
       middle_name: user.middle_name,
       last_name: user.last_name,
-      gender: user.gender,
+      // gender: user.gender,
       contact_number: user.contact_number,
-      civil_status: user.civil_status,
+      // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
       volunteers: userVolunteers || []
@@ -661,9 +661,9 @@ async function addVolunteer(req, res) {
       first_name: user.first_name,
       middle_name: user.middle_name,
       last_name: user.last_name,
-      gender: user.gender,
+      // gender: user.gender,
       contact_number: user.contact_number,
-      civil_status: user.civil_status,
+      // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
       volunteers: userVolunteers || []

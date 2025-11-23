@@ -155,17 +155,17 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    gender: {
-      type: String,
-      required: true,
-    },
+    // gender: {
+    //   type: String,
+    //   required: true,
+    // },
     contact_number: {
       type: String,
       required: true,
     },
-    civil_status: {
-      type: String,
-    },
+    // civil_status: {
+    //   type: String,
+    // },
     birthday: {
       type: Date,
       required: true,
