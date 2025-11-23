@@ -20,6 +20,7 @@ router.post("/checkContact", UserController.checkContactExists)
 router.put("/updateUser", UserController.updateUser)
 router.post("/addVolunteer", UserController.addVolunteer)
 router.put("/updateUserRole", UserController.updateUserRole)
+router.put("/updateUserStatus", UserController.updateUserStatus)
 
 // Admin routes
 router.post("/createAdmin", AdminController.addAdmin)
