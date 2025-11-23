@@ -36,6 +36,7 @@ router.get("/admin/getDonation/:donationId", AdminDonationController.getDonation
 router.put("/admin/updateDonationStatus", AdminDonationController.updateDonationStatus);
 router.get("/admin/getDonationsByUser/:userId", AdminDonationController.getDonationsByUser);
 router.get("/admin/getDonationStatistics", AdminDonationController.getDonationStatistics);
+router.get("/admin/getMonthlyDonations", AdminDonationController.getMonthlyDonations);
 
 // Wedding routes (user)
 router.post("/createWedding", WeddingController.createWedding);

@@ -258,11 +258,47 @@ async function getDonationStatistics(req, res) {
   }
 }
 
+/**
+ * Get total confirmed donations for the current month
+ * GET /api/admin/getMonthlyDonations
+ */
+async function getMonthlyDonations(req, res) {
+  try {
+    const now = new Date();
+
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    const monthlyDonations = await DonationModel.find({
+      is_deleted: false,
+      status: "confirmed",
+      createdAt: { $gte: startOfMonth, $lt: endOfMonth }
+    });
+
+    const totalAmount = monthlyDonations.reduce(
+      (sum, d) => sum + (d.amount || 0), 
+      0
+    );
+
+    res.status(200).json({
+      message: "Monthly donations retrieved successfully.",
+      totalAmount,
+      count: monthlyDonations.length,
+      monthlyDonations,
+    });
+
+  } catch (err) {
+    console.error("Error getting monthly donations:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   getAllDonations,
   getDonationById,
   updateDonationStatus,
   getDonationsByUser,
   getDonationStatistics,
+  getMonthlyDonations,
 };
 

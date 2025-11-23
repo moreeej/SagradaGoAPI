@@ -741,4 +741,33 @@ async function addVolunteer(req, res) {
   }
 }
 
-module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole }
+async function updateUserStatus(req, res) {
+  try {
+    const { uid, is_active } = req.body;
+
+    if (!uid || typeof is_active !== "boolean") {
+      return res.status(400).json({ message: "User ID and status are required." });
+    }
+
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+    if (!user) return res.status(404).json({ message: "User not found." });
+
+    user.is_active = is_active;
+    await user.save();
+
+    res.status(200).json({
+      message: `User account has been ${is_active ? "enabled" : "disabled"} successfully.`,
+      user: {
+        uid: user.uid,
+        email: user.email,
+        is_active: user.is_active,
+      },
+    });
+
+  } catch (err) {
+    console.error("Error updating user status:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus }
