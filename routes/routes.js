@@ -10,6 +10,8 @@ const CommunionController = require("../controllers/CommunionController");
 const NotificationController = require("../controllers/NotificationController");
 const VolunteerController = require("../controllers/VolunteerController");
 
+const upload = require("../middleware/upload"); 
+
 // User routes
 router.post("/createUser", UserController.createUser);
 router.post("/findUser", UserController.findUser)
@@ -27,7 +29,7 @@ router.post("/createAdmin", AdminController.addAdmin)
 router.post("/findAdmin", AdminController.findAdmin)
 
 // Donation routes (user)
-router.post("/createDonation", DonationController.createDonation);
+router.post("/createDonation", upload.single("receipt"), DonationController.createDonation);
 router.post("/getUserDonations", DonationController.getUserDonations);
 router.post("/getDonationStats", DonationController.getDonationStats);
 
