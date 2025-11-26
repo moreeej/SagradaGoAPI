@@ -34,6 +34,14 @@ const DonationSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
     },
+    donationImage: {
+      type: String,
+      default: null, // For In Kind donation image
+    },
+    receipt: {
+      type: String,
+      default: null, // For GCash receipt
+    },
     is_deleted: {
       type: Boolean,
       default: false,
@@ -47,4 +55,3 @@ DonationSchema.index({ status: 1, createdAt: -1 });
 
 const DonationModel = mongoose.model("Donations", DonationSchema);
 module.exports = DonationModel;
-

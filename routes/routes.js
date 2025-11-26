@@ -29,7 +29,11 @@ router.post("/createAdmin", AdminController.addAdmin)
 router.post("/findAdmin", AdminController.findAdmin)
 
 // Donation routes (user)
-router.post("/createDonation", upload.single("receipt"), DonationController.createDonation);
+router.post("/createDonation", upload.fields([
+  { name: "image", maxCount: 1 },
+  { name: "receipt", maxCount: 1 },
+]), DonationController.createDonation);
+
 router.post("/getUserDonations", DonationController.getUserDonations);
 router.post("/getDonationStats", DonationController.getDonationStats);
 
