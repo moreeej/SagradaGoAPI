@@ -150,11 +150,11 @@ router.post("/getEventVolunteers", VolunteerController.getEventVolunteers);
 router.post("/getUserVolunteers", VolunteerController.getUserVolunteers);
 router.put("/updateVolunteerStatus", VolunteerController.updateVolunteerStatus);
 
-// User routes (view only)
-router.get("/getAllEvents", EventController.getAllEvents); // all users can see all events
-router.get("/getEvent/:eventId", EventController.getEventById); // view single event
+// User can view events
+router.get("/getAllEvents", EventController.getAllEvents);
+router.get("/getEvent/:eventId", EventController.getEventById);
 
-// Admin routes (create/update/delete)
+// Admin routes
 router.post("/admin/createEvent", upload.single("image"), EventController.createEvent);
 router.put("/admin/updateEvent", upload.single("image"), EventController.updateEvent);
 router.delete("/admin/deleteEvent/:eventId", EventController.deleteEvent);
