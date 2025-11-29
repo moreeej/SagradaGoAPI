@@ -2,6 +2,7 @@
 
 const CommunionModel = require("../models/BookCommunion");
 const UserModel = require("../models/User");
+const supabase = require("../config/supabaseClient");
 
 /**
  * Generate a unique transaction ID
@@ -19,6 +20,10 @@ function generateTransactionId() {
  */
 async function createCommunion(req, res) {
   try {
+    console.log("=== Communion Booking Creation Request ===");
+    console.log("req.body:", req.body);
+    console.log("req.files:", req.files ? JSON.stringify(Object.keys(req.files)) : "No files");
+
     const {
       uid,
       date,
@@ -50,19 +55,104 @@ async function createCommunion(req, res) {
       return res.status(404).json({ message: "User not found." });
     }
 
+    // Helper function to ensure bucket exists
+    const ensureBucketExists = async (bucketName) => {
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        console.error("Error listing buckets:", listError);
+        return false;
+      }
+      
+      const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+      
+      if (!bucketExists) {
+        console.log(`Bucket "${bucketName}" does not exist. Attempting to create...`);
+        const { data: createData, error: createError } = await supabase.storage.createBucket(bucketName, {
+          public: false,
+          allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+          fileSizeLimit: 10485760 // 10MB limit
+        });
+        
+        if (createError) {
+          console.error(`Error creating bucket "${bucketName}":`, createError);
+          return false;
+        }
+        
+        console.log(`Bucket "${bucketName}" created successfully`);
+      }
+      
+      return true;
+    };
+
+    // Handle uploaded PDF files
+    let uploadedDocuments = {};
+    const documentFields = [
+      'baptismal_certificate',
+      'communion_preparation',
+      'parent_consent'
+    ];
+
+    if (req.files) {
+      // Ensure bucket exists
+      const bucketReady = await ensureBucketExists("bookings");
+      if (!bucketReady) {
+        return res.status(500).json({ 
+          message: "Storage bucket not available. Please contact administrator to set up Supabase storage bucket 'bookings'." 
+        });
+      }
+
+      // Process each uploaded file
+      for (const fieldName of documentFields) {
+        if (req.files[fieldName] && req.files[fieldName][0]) {
+          try {
+            const file = req.files[fieldName][0];
+            const fileName = `${Date.now()}-${file.originalname || `${fieldName}.pdf`}`;
+            
+            console.log(`Uploading ${fieldName} to Supabase: ${fileName}`);
+            
+            const { data, error } = await supabase.storage
+              .from("bookings")
+              .upload(`communion/${fileName}`, file.buffer, { 
+                contentType: file.mimetype || 'application/pdf',
+                upsert: false 
+              });
+            
+            if (error) {
+              console.error(`Supabase upload error (${fieldName}):`, error);
+              if (error.message?.includes("Bucket not found")) {
+                return res.status(500).json({ 
+                  message: "Storage bucket 'bookings' not found. Please create it in Supabase dashboard or contact administrator." 
+                });
+              }
+              return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
+            } else {
+              uploadedDocuments[fieldName] = data.path;
+              console.log(`${fieldName} uploaded successfully:`, data.path);
+            }
+          } catch (uploadError) {
+            console.error(`Error uploading ${fieldName}:`, uploadError);
+            return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
+          }
+        }
+      }
+    }
+
     // Generate transaction ID
     const transaction_id = generateTransactionId();
 
     // Create communion booking
-    // Note: Consider adding uid or contact_number to Communion model for better user tracking
     const communionData = {
       transaction_id,
       date: new Date(date),
       time: time.toString(),
       attendees: parseInt(attendees),
+      uid: uid, // Add uid for user tracking
+      contact_number: user.contact_number,
+      baptismal_certificate: uploadedDocuments.baptismal_certificate || req.body.baptismal_certificate || '',
+      communion_preparation: uploadedDocuments.communion_preparation || req.body.communion_preparation || '',
+      parent_consent: uploadedDocuments.parent_consent || req.body.parent_consent || '',
       status: "pending",
-      // Store uid in transaction_id prefix for reference (COM-{timestamp}-{random})
-      // Ideally, add uid field to model
     };
 
     const newCommunion = new CommunionModel(communionData);
@@ -100,19 +190,19 @@ async function getUserCommunions(req, res) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    // Note: Since Communion model doesn't have uid or contact_number field,
-    // we cannot directly filter by user. This is a limitation of the current model.
-    // For now, we'll return all communions. 
-    // TODO: Consider adding uid or contact_number field to Communion model
-    // Alternative: Store uid in a separate field or use transaction_id pattern
-    const communions = await CommunionModel.find()
+    // Find all communion bookings for this user
+    const communions = await CommunionModel.find({ 
+      $or: [
+        { uid: uid },
+        { contact_number: user.contact_number }
+      ]
+    })
       .sort({ createdAt: -1 });
 
     res.status(200).json({
       message: "Communion bookings retrieved successfully.",
       communions,
       count: communions.length,
-      note: "Note: Communion model doesn't have uid/contact_number. Consider updating the model for proper user filtering.",
     });
 
   } catch (err) {

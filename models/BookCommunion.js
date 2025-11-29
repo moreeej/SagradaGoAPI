@@ -5,6 +5,7 @@ const CommunionSchema = mongoose.Schema(
     transaction_id: {
       type: String,
       required: true,
+      unique: true,
     },
     date: {
       type: Date,
@@ -18,6 +19,27 @@ const CommunionSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
+    uid: {
+      type: String,
+      default: '',
+    },
+    contact_number: {
+      type: String,
+      default: '',
+    },
+    // Document fields for file uploads
+    baptismal_certificate: {
+      type: String,
+      default: '',
+    },
+    communion_preparation: {
+      type: String,
+      default: '',
+    },
+    parent_consent: {
+      type: String,
+      default: '',
+    },
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled"],
@@ -27,7 +49,6 @@ const CommunionSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-
-const CommunionModel = mongoose.model("CommunionBookings", CommunionSchema)
+const CommunionModel = mongoose.model("CommunionBookings", CommunionSchema);
 
 module.exports = CommunionModel;

@@ -123,6 +123,36 @@ const BaptismSchema = new mongoose.Schema(
         last_name: String,
       },
     ],
+    // Document fields for file uploads
+    birth_certificate: {
+      type: String,
+      default: '',
+    },
+    parents_marriage_certificate: {
+      type: String,
+      default: '',
+    },
+    godparent_confirmation: {
+      type: String,
+      default: '',
+    },
+    baptismal_seminar: {
+      type: String,
+      default: '',
+    },
+    // Store godparent data as objects (from frontend)
+    main_godfather: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    main_godmother: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    additional_godparents: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled"],

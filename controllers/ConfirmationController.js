@@ -1,4 +1,4 @@
-const AnointingModel = require("../models/BookAnointing");
+const ConfirmationModel = require("../models/BookConfirmation");
 const UserModel = require("../models/User");
 const supabase = require("../config/supabaseClient");
 
@@ -8,7 +8,7 @@ const supabase = require("../config/supabaseClient");
 function generateTransactionId() {
   const timestamp = Date.now();
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
-  return `ANO-${timestamp}-${random}`;
+  return `CON-${timestamp}-${random}`;
 }
 
 /**
@@ -44,14 +44,14 @@ async function ensureBucketExists(bucketName) {
 }
 
 /**
- * Create a new anointing of the sick booking
- * POST /api/createAnointing
- * Body: { uid, date, time, attendees, contact_number, medical_condition }
- * Files: medical_certificate
+ * Create a new confirmation booking
+ * POST /api/createConfirmation
+ * Body: { uid, date, time, attendees, contact_number, sponsor_name }
+ * Files: baptismal_certificate, first_communion_certificate, confirmation_preparation, sponsor_certificate
  */
-async function createAnointing(req, res) {
+async function createConfirmation(req, res) {
   try {
-    console.log("=== Anointing of the Sick Booking Creation Request ===");
+    console.log("=== Confirmation Booking Creation Request ===");
     console.log("req.body:", req.body);
     console.log("req.files:", req.files ? JSON.stringify(Object.keys(req.files)) : "No files");
 
@@ -61,7 +61,7 @@ async function createAnointing(req, res) {
       time,
       attendees,
       contact_number,
-      medical_condition,
+      sponsor_name,
     } = req.body;
 
     // Validate required fields
@@ -70,11 +70,11 @@ async function createAnointing(req, res) {
     }
 
     if (!date) {
-      return res.status(400).json({ message: "Anointing date is required." });
+      return res.status(400).json({ message: "Confirmation date is required." });
     }
 
     if (!time) {
-      return res.status(400).json({ message: "Anointing time is required." });
+      return res.status(400).json({ message: "Confirmation time is required." });
     }
 
     if (!attendees || attendees <= 0) {
@@ -90,7 +90,12 @@ async function createAnointing(req, res) {
 
     // Handle uploaded PDF files
     let uploadedDocuments = {};
-    const documentFields = ['medical_certificate'];
+    const documentFields = [
+      'baptismal_certificate',
+      'first_communion_certificate',
+      'confirmation_preparation',
+      'sponsor_certificate'
+    ];
 
     if (req.files) {
       // Ensure bucket exists
@@ -112,7 +117,7 @@ async function createAnointing(req, res) {
             
             const { data, error } = await supabase.storage
               .from("bookings")
-              .upload(`anointing/${fileName}`, file.buffer, { 
+              .upload(`confirmation/${fileName}`, file.buffer, { 
                 contentType: file.mimetype || 'application/pdf',
                 upsert: false 
               });
@@ -140,39 +145,42 @@ async function createAnointing(req, res) {
     // Generate transaction ID
     const transaction_id = generateTransactionId();
 
-    // Create anointing booking
-    const anointingData = {
+    // Create confirmation booking
+    const confirmationData = {
       transaction_id,
       date: new Date(date),
       time: time.toString(),
       attendees: parseInt(attendees),
       contact_number: contact_number || user.contact_number,
-      medical_condition: medical_condition || '',
-      medical_certificate: uploadedDocuments.medical_certificate || req.body.medical_certificate || '',
+      sponsor_name: sponsor_name || '',
+      baptismal_certificate: uploadedDocuments.baptismal_certificate || req.body.baptismal_certificate || '',
+      first_communion_certificate: uploadedDocuments.first_communion_certificate || req.body.first_communion_certificate || '',
+      confirmation_preparation: uploadedDocuments.confirmation_preparation || req.body.confirmation_preparation || '',
+      sponsor_certificate: uploadedDocuments.sponsor_certificate || req.body.sponsor_certificate || '',
       status: "pending",
     };
 
-    const newAnointing = new AnointingModel(anointingData);
-    await newAnointing.save();
+    const newConfirmation = new ConfirmationModel(confirmationData);
+    await newConfirmation.save();
 
     res.status(201).json({
-      message: "Anointing of the Sick booking created successfully.",
-      anointing: newAnointing,
+      message: "Confirmation booking created successfully.",
+      confirmation: newConfirmation,
       transaction_id,
     });
 
   } catch (err) {
-    console.error("Error creating anointing booking:", err);
+    console.error("Error creating confirmation booking:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
 /**
- * Get all anointing bookings for a user
- * POST /api/getUserAnointings
+ * Get all confirmation bookings for a user
+ * POST /api/getUserConfirmations
  * Body: { uid }
  */
-async function getUserAnointings(req, res) {
+async function getUserConfirmations(req, res) {
   try {
     const { uid } = req.body;
 
@@ -187,28 +195,28 @@ async function getUserAnointings(req, res) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    // Find all anointing bookings for this user's contact number
-    const anointings = await AnointingModel.find({ contact_number: user.contact_number })
+    // Find all confirmation bookings for this user's contact number
+    const confirmations = await ConfirmationModel.find({ contact_number: user.contact_number })
       .sort({ createdAt: -1 });
 
     res.status(200).json({
-      message: "Anointing bookings retrieved successfully.",
-      anointings,
-      count: anointings.length,
+      message: "Confirmation bookings retrieved successfully.",
+      confirmations,
+      count: confirmations.length,
     });
 
   } catch (err) {
-    console.error("Error getting anointing bookings:", err);
+    console.error("Error getting confirmation bookings:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
 /**
- * Get a specific anointing booking by transaction ID
- * POST /api/getAnointing
+ * Get a specific confirmation booking by transaction ID
+ * POST /api/getConfirmation
  * Body: { transaction_id }
  */
-async function getAnointing(req, res) {
+async function getConfirmation(req, res) {
   try {
     const { transaction_id } = req.body;
 
@@ -216,29 +224,29 @@ async function getAnointing(req, res) {
       return res.status(400).json({ message: "Transaction ID is required." });
     }
 
-    const anointing = await AnointingModel.findOne({ transaction_id });
+    const confirmation = await ConfirmationModel.findOne({ transaction_id });
 
-    if (!anointing) {
-      return res.status(404).json({ message: "Anointing booking not found." });
+    if (!confirmation) {
+      return res.status(404).json({ message: "Confirmation booking not found." });
     }
 
     res.status(200).json({
-      message: "Anointing booking retrieved successfully.",
-      anointing,
+      message: "Confirmation booking retrieved successfully.",
+      confirmation,
     });
 
   } catch (err) {
-    console.error("Error getting anointing booking:", err);
+    console.error("Error getting confirmation booking:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
 /**
- * Update anointing booking status
- * PUT /api/updateAnointingStatus
+ * Update confirmation booking status
+ * PUT /api/updateConfirmationStatus
  * Body: { transaction_id, status }
  */
-async function updateAnointingStatus(req, res) {
+async function updateConfirmationStatus(req, res) {
   try {
     const { transaction_id, status } = req.body;
 
@@ -257,51 +265,52 @@ async function updateAnointingStatus(req, res) {
       });
     }
 
-    const anointing = await AnointingModel.findOne({ transaction_id });
+    const confirmation = await ConfirmationModel.findOne({ transaction_id });
 
-    if (!anointing) {
-      return res.status(404).json({ message: "Anointing booking not found." });
+    if (!confirmation) {
+      return res.status(404).json({ message: "Confirmation booking not found." });
     }
 
-    anointing.status = status;
-    await anointing.save();
+    confirmation.status = status;
+    await confirmation.save();
 
     res.status(200).json({
-      message: "Anointing booking status updated successfully.",
-      anointing,
+      message: "Confirmation booking status updated successfully.",
+      confirmation,
     });
 
   } catch (err) {
-    console.error("Error updating anointing status:", err);
+    console.error("Error updating confirmation status:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
 /**
- * Get all anointing bookings (admin function)
- * GET /api/getAllAnointings
+ * Get all confirmation bookings (admin function)
+ * GET /api/getAllConfirmations
  */
-async function getAllAnointings(req, res) {
+async function getAllConfirmations(req, res) {
   try {
-    const anointings = await AnointingModel.find()
+    const confirmations = await ConfirmationModel.find()
       .sort({ createdAt: -1 });
 
     res.status(200).json({
-      message: "All anointing bookings retrieved successfully.",
-      anointings,
-      count: anointings.length,
+      message: "All confirmation bookings retrieved successfully.",
+      confirmations,
+      count: confirmations.length,
     });
 
   } catch (err) {
-    console.error("Error getting all anointing bookings:", err);
+    console.error("Error getting all confirmation bookings:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
 module.exports = {
-  createAnointing,
-  getUserAnointings,
-  getAnointing,
-  updateAnointingStatus,
-  getAllAnointings,
+  createConfirmation,
+  getUserConfirmations,
+  getConfirmation,
+  updateConfirmationStatus,
+  getAllConfirmations,
 };
+

@@ -1,0 +1,318 @@
+const BurialModel = require("../models/BookBurial");
+const UserModel = require("../models/User");
+const supabase = require("../config/supabaseClient");
+
+/**
+ * Generate a unique transaction ID
+ */
+function generateTransactionId() {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `BUR-${timestamp}-${random}`;
+}
+
+/**
+ * Helper function to ensure bucket exists
+ */
+async function ensureBucketExists(bucketName) {
+  const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+  
+  if (listError) {
+    console.error("Error listing buckets:", listError);
+    return false;
+  }
+  
+  const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+  
+  if (!bucketExists) {
+    console.log(`Bucket "${bucketName}" does not exist. Attempting to create...`);
+    const { data: createData, error: createError } = await supabase.storage.createBucket(bucketName, {
+      public: false,
+      allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+      fileSizeLimit: 10485760 // 10MB limit
+    });
+    
+    if (createError) {
+      console.error(`Error creating bucket "${bucketName}":`, createError);
+      return false;
+    }
+    
+    console.log(`Bucket "${bucketName}" created successfully`);
+  }
+  
+  return true;
+}
+
+/**
+ * Create a new burial booking
+ * POST /api/createBurial
+ * Body: { uid, date, time, attendees, contact_number, funeral_mass, death_anniversary, funeral_blessing, tomb_blessing }
+ * Files: death_certificate, deceased_baptismal
+ */
+async function createBurial(req, res) {
+  try {
+    console.log("=== Burial Booking Creation Request ===");
+    console.log("req.body:", req.body);
+    console.log("req.files:", req.files ? JSON.stringify(Object.keys(req.files)) : "No files");
+
+    const {
+      uid,
+      date,
+      time,
+      attendees,
+      contact_number,
+      funeral_mass,
+      death_anniversary,
+      funeral_blessing,
+      tomb_blessing,
+    } = req.body;
+
+    // Validate required fields
+    if (!uid) {
+      return res.status(400).json({ message: "User ID (uid) is required." });
+    }
+
+    if (!date) {
+      return res.status(400).json({ message: "Burial date is required." });
+    }
+
+    if (!time) {
+      return res.status(400).json({ message: "Burial time is required." });
+    }
+
+    if (!attendees || attendees <= 0) {
+      return res.status(400).json({ message: "Valid number of attendees is required." });
+    }
+
+    // Verify user exists
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Handle uploaded PDF files
+    let uploadedDocuments = {};
+    const documentFields = [
+      'death_certificate',
+      'deceased_baptismal'
+    ];
+
+    if (req.files) {
+      // Ensure bucket exists
+      const bucketReady = await ensureBucketExists("bookings");
+      if (!bucketReady) {
+        return res.status(500).json({ 
+          message: "Storage bucket not available. Please contact administrator to set up Supabase storage bucket 'bookings'." 
+        });
+      }
+
+      // Process each uploaded file
+      for (const fieldName of documentFields) {
+        if (req.files[fieldName] && req.files[fieldName][0]) {
+          try {
+            const file = req.files[fieldName][0];
+            const fileName = `${Date.now()}-${file.originalname || `${fieldName}.pdf`}`;
+            
+            console.log(`Uploading ${fieldName} to Supabase: ${fileName}`);
+            
+            const { data, error } = await supabase.storage
+              .from("bookings")
+              .upload(`burial/${fileName}`, file.buffer, { 
+                contentType: file.mimetype || 'application/pdf',
+                upsert: false 
+              });
+            
+            if (error) {
+              console.error(`Supabase upload error (${fieldName}):`, error);
+              if (error.message?.includes("Bucket not found")) {
+                return res.status(500).json({ 
+                  message: "Storage bucket 'bookings' not found. Please create it in Supabase dashboard or contact administrator." 
+                });
+              }
+              return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
+            } else {
+              uploadedDocuments[fieldName] = data.path;
+              console.log(`${fieldName} uploaded successfully:`, data.path);
+            }
+          } catch (uploadError) {
+            console.error(`Error uploading ${fieldName}:`, uploadError);
+            return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
+          }
+        }
+      }
+    }
+
+    // Generate transaction ID
+    const transaction_id = generateTransactionId();
+
+    // Create burial booking
+    const burialData = {
+      transaction_id,
+      date: new Date(date),
+      time: time.toString(),
+      attendees: parseInt(attendees),
+      contact_number: contact_number || user.contact_number,
+      funeral_mass: funeral_mass || false,
+      death_anniversary: death_anniversary || false,
+      funeral_blessing: funeral_blessing || false,
+      tomb_blessing: tomb_blessing || false,
+      death_certificate: uploadedDocuments.death_certificate || req.body.death_certificate || '',
+      deceased_baptismal: uploadedDocuments.deceased_baptismal || req.body.deceased_baptismal || '',
+      status: "pending",
+    };
+
+    const newBurial = new BurialModel(burialData);
+    await newBurial.save();
+
+    res.status(201).json({
+      message: "Burial booking created successfully.",
+      burial: newBurial,
+      transaction_id,
+    });
+
+  } catch (err) {
+    console.error("Error creating burial booking:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+/**
+ * Get all burial bookings for a user
+ * POST /api/getUserBurials
+ * Body: { uid }
+ */
+async function getUserBurials(req, res) {
+  try {
+    const { uid } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ message: "User ID (uid) is required." });
+    }
+
+    // Verify user exists
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Find all burial bookings for this user's contact number
+    const burials = await BurialModel.find({ contact_number: user.contact_number })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "Burial bookings retrieved successfully.",
+      burials,
+      count: burials.length,
+    });
+
+  } catch (err) {
+    console.error("Error getting burial bookings:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+/**
+ * Get a specific burial booking by transaction ID
+ * POST /api/getBurial
+ * Body: { transaction_id }
+ */
+async function getBurial(req, res) {
+  try {
+    const { transaction_id } = req.body;
+
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const burial = await BurialModel.findOne({ transaction_id });
+
+    if (!burial) {
+      return res.status(404).json({ message: "Burial booking not found." });
+    }
+
+    res.status(200).json({
+      message: "Burial booking retrieved successfully.",
+      burial,
+    });
+
+  } catch (err) {
+    console.error("Error getting burial booking:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+/**
+ * Update burial booking status
+ * PUT /api/updateBurialStatus
+ * Body: { transaction_id, status }
+ */
+async function updateBurialStatus(req, res) {
+  try {
+    const { transaction_id, status } = req.body;
+
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    if (!status) {
+      return res.status(400).json({ message: "Status is required." });
+    }
+
+    const validStatuses = ["pending", "confirmed", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        message: `Status must be one of: ${validStatuses.join(", ")}`,
+      });
+    }
+
+    const burial = await BurialModel.findOne({ transaction_id });
+
+    if (!burial) {
+      return res.status(404).json({ message: "Burial booking not found." });
+    }
+
+    burial.status = status;
+    await burial.save();
+
+    res.status(200).json({
+      message: "Burial booking status updated successfully.",
+      burial,
+    });
+
+  } catch (err) {
+    console.error("Error updating burial status:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+/**
+ * Get all burial bookings (admin function)
+ * GET /api/getAllBurials
+ */
+async function getAllBurials(req, res) {
+  try {
+    const burials = await BurialModel.find()
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "All burial bookings retrieved successfully.",
+      burials,
+      count: burials.length,
+    });
+
+  } catch (err) {
+    console.error("Error getting all burial bookings:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = {
+  createBurial,
+  getUserBurials,
+  getBurial,
+  updateBurialStatus,
+  getAllBurials,
+};
+

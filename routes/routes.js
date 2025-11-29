@@ -6,7 +6,11 @@ const AdminController = require("../controllers/AdminController")
 const DonationController = require("../controllers/DonationController")
 const AdminDonationController = require("../controllers/AdminDonationController");
 const WeddingController = require("../controllers/WeddingController");
+const BaptismController = require("../controllers/BaptismController");
+const BurialController = require("../controllers/BurialController");
 const CommunionController = require("../controllers/CommunionController");
+const AnointingController = require("../controllers/AnointingController");
+const ConfirmationController = require("../controllers/ConfirmationController");
 const NotificationController = require("../controllers/NotificationController");
 const VolunteerController = require("../controllers/VolunteerController");
 
@@ -69,14 +73,69 @@ router.put("/updateWeddingStatus", WeddingController.updateWeddingStatus);
 // Wedding routes (admin)
 router.get("/admin/getAllWeddings", WeddingController.getAllWeddings);
 
-// Communion routes (user)
-router.post("/createCommunion", CommunionController.createCommunion);
+// Baptism routes (user) - with file upload support
+router.post("/createBaptism", upload.fields([
+  { name: "birth_certificate", maxCount: 1 },
+  { name: "parents_marriage_certificate", maxCount: 1 },
+  { name: "godparent_confirmation", maxCount: 1 },
+  { name: "baptismal_seminar", maxCount: 1 },
+]), BaptismController.createBaptism);
+router.post("/getUserBaptisms", BaptismController.getUserBaptisms);
+router.post("/getBaptism", BaptismController.getBaptism);
+router.put("/updateBaptismStatus", BaptismController.updateBaptismStatus);
+
+// Baptism routes (admin)
+router.get("/admin/getAllBaptisms", BaptismController.getAllBaptisms);
+
+// Burial routes (user) - with file upload support
+router.post("/createBurial", upload.fields([
+  { name: "death_certificate", maxCount: 1 },
+  { name: "deceased_baptismal", maxCount: 1 },
+]), BurialController.createBurial);
+router.post("/getUserBurials", BurialController.getUserBurials);
+router.post("/getBurial", BurialController.getBurial);
+router.put("/updateBurialStatus", BurialController.updateBurialStatus);
+
+// Burial routes (admin)
+router.get("/admin/getAllBurials", BurialController.getAllBurials);
+
+// Communion routes (user) - with file upload support
+router.post("/createCommunion", upload.fields([
+  { name: "baptismal_certificate", maxCount: 1 },
+  { name: "communion_preparation", maxCount: 1 },
+  { name: "parent_consent", maxCount: 1 },
+]), CommunionController.createCommunion);
 router.post("/getUserCommunions", CommunionController.getUserCommunions);
 router.post("/getCommunion", CommunionController.getCommunion);
 router.put("/updateCommunionStatus", CommunionController.updateCommunionStatus);
 
 // Communion routes (admin)
 router.get("/admin/getAllCommunions", CommunionController.getAllCommunions);
+
+// Anointing routes (user) - with file upload support
+router.post("/createAnointing", upload.fields([
+  { name: "medical_certificate", maxCount: 1 },
+]), AnointingController.createAnointing);
+router.post("/getUserAnointings", AnointingController.getUserAnointings);
+router.post("/getAnointing", AnointingController.getAnointing);
+router.put("/updateAnointingStatus", AnointingController.updateAnointingStatus);
+
+// Anointing routes (admin)
+router.get("/admin/getAllAnointings", AnointingController.getAllAnointings);
+
+// Confirmation routes (user) - with file upload support
+router.post("/createConfirmation", upload.fields([
+  { name: "baptismal_certificate", maxCount: 1 },
+  { name: "first_communion_certificate", maxCount: 1 },
+  { name: "confirmation_preparation", maxCount: 1 },
+  { name: "sponsor_certificate", maxCount: 1 },
+]), ConfirmationController.createConfirmation);
+router.post("/getUserConfirmations", ConfirmationController.getUserConfirmations);
+router.post("/getConfirmation", ConfirmationController.getConfirmation);
+router.put("/updateConfirmationStatus", ConfirmationController.updateConfirmationStatus);
+
+// Confirmation routes (admin)
+router.get("/admin/getAllConfirmations", ConfirmationController.getAllConfirmations);
 
 // Notification routes (for both users and admins)
 router.post("/createNotification", NotificationController.createNotification);

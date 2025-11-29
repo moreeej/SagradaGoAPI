@@ -2,23 +2,36 @@ const mongoose = require("mongoose");
 
 const AnointingSchema = mongoose.Schema(
   {
-    transaction_id:{
+    transaction_id: {
       type: String,
       required: true,
+      unique: true,
     },
-    date:{
+    date: {
       type: Date,
       required: true,
     },
-    time:{
+    time: {
       type: String,
       required: true,
     },
-    attendees:{
+    attendees: {
       type: Number,
       required: true,
     },
-    status:{
+    contact_number: {
+      type: String,
+      required: true,
+    },
+    medical_condition: {
+      type: String,
+      default: '',
+    },
+    medical_certificate: {
+      type: String,
+      default: '',
+    },
+    status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
@@ -27,7 +40,6 @@ const AnointingSchema = mongoose.Schema(
   { timestamps: true }
 );
 
-
-const AnointingModel = mongoose.model("AnointingBookings", AnointingSchema)
+const AnointingModel = mongoose.model("AnointingBookings", AnointingSchema);
 
 module.exports = AnointingModel;

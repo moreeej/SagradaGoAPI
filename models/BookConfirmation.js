@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const BurialSchema = new mongoose.Schema(
+const ConfirmationSchema = new mongoose.Schema(
   {
     transaction_id: {
       type: String,
@@ -23,27 +23,23 @@ const BurialSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    funeral_mass: {
-      type: Boolean,
-      default: false,
-    },
-    death_anniversary: {
-      type: Boolean,
-      default: false,
-    },
-    funeral_blessing: {
-      type: Boolean,
-      default: false,
-    },
-    tomb_blessing: {
-      type: Boolean,
-      default: false,
-    },
-    death_certificate: {
+    sponsor_name: {
       type: String,
       default: '',
     },
-    deceased_baptismal: {
+    baptismal_certificate: {
+      type: String,
+      default: '',
+    },
+    first_communion_certificate: {
+      type: String,
+      default: '',
+    },
+    confirmation_preparation: {
+      type: String,
+      default: '',
+    },
+    sponsor_certificate: {
       type: String,
       default: '',
     },
@@ -56,7 +52,7 @@ const BurialSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const BurialModel = mongoose.model("BurialBookings", BurialSchema);
+const ConfirmationModel = mongoose.model("ConfirmationBookings", ConfirmationSchema);
 
-module.exports = BurialModel;
+module.exports = ConfirmationModel;
 
