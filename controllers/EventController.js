@@ -161,10 +161,30 @@ async function deleteEvent(req, res) {
   }
 }
 
+/**
+ * Get all unique locations from events
+ * GET /api/admin/getAllLocations
+ */
+async function getAllLocations(req, res) {
+  try {
+    // Get distinct locations
+    const locations = await EventModel.distinct("location");
+
+    res.status(200).json({
+      message: "Locations retrieved successfully.",
+      locations,
+    });
+  } catch (err) {
+    console.error("Error fetching locations:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   getAllEvents,
   getEventById,
   createEvent,
   updateEvent,
   deleteEvent,
+  getAllLocations,
 };

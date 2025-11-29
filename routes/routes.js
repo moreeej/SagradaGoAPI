@@ -160,5 +160,6 @@ router.get("/getEvent/:eventId", EventController.getEventById);
 router.post("/admin/createEvent", upload.single("image"), EventController.createEvent);
 router.put("/admin/updateEvent", upload.single("image"), EventController.updateEvent);
 router.delete("/admin/deleteEvent/:eventId", EventController.deleteEvent);
+router.get("/admin/getAllLocations", EventController.getAllLocations);
 
 module.exports = router;  
