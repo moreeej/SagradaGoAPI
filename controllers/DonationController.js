@@ -300,10 +300,10 @@ async function createDonation(req, res) {
         return true;
       };
 
-      // In Kind donation image
+      // In Kind donation image upload
       if (req.files["image"] && req.files["image"][0]) {
         try {
-          // Ensure bucket exists
+          // Ensure bucket exists (shared helper function also used for GCash receipts)
           const bucketReady = await ensureBucketExists("donations");
           if (!bucketReady) {
             return res.status(500).json({ 
@@ -313,8 +313,9 @@ async function createDonation(req, res) {
 
           const file = req.files["image"][0];
           const fileName = `${Date.now()}-${file.originalname || 'donation-image.jpg'}`;
-          console.log(`Uploading image to Supabase: ${fileName}`);
+          console.log(`Uploading donation image to Supabase: ${fileName}`);
           
+          // Upload to in-kind/ folder in the donations bucket
           const { data, error } = await supabase.storage
             .from("donations")
             .upload(`in-kind/${fileName}`, file.buffer, { 
@@ -323,7 +324,7 @@ async function createDonation(req, res) {
             });
           
           if (error) {
-            console.error("Supabase upload error (image):", error);
+            console.error("Supabase upload error (donation image):", error);
             if (error.message?.includes("Bucket not found")) {
               return res.status(500).json({ 
                 message: "Storage bucket 'donations' not found. Please create it in Supabase dashboard or contact administrator." 
@@ -332,18 +333,18 @@ async function createDonation(req, res) {
             return res.status(500).json({ message: "Failed to upload donation image. Please try again." });
           } else {
             donationImageUrl = data.path;
-            console.log("Image uploaded successfully:", donationImageUrl);
+            console.log("Donation image uploaded successfully:", donationImageUrl);
           }
         } catch (uploadError) {
-          console.error("Error uploading image:", uploadError);
+          console.error("Error uploading donation image:", uploadError);
           return res.status(500).json({ message: "Failed to upload donation image. Please try again." });
         }
       }
 
-      // GCash receipt
+      // GCash receipt upload - uses same logic as donation image upload
       if (req.files["receipt"] && req.files["receipt"][0]) {
         try {
-          // Ensure bucket exists
+          // Ensure bucket exists (same helper function as donation image)
           const bucketReady = await ensureBucketExists("donations");
           if (!bucketReady) {
             return res.status(500).json({ 
@@ -353,8 +354,9 @@ async function createDonation(req, res) {
 
           const file = req.files["receipt"][0];
           const fileName = `${Date.now()}-${file.originalname || 'gcash-receipt.jpg'}`;
-          console.log(`Uploading receipt to Supabase: ${fileName}`);
+          console.log(`Uploading GCash receipt to Supabase: ${fileName}`);
           
+          // Upload to gcash/ folder in the donations bucket
           const { data, error } = await supabase.storage
             .from("donations")
             .upload(`gcash/${fileName}`, file.buffer, { 
@@ -363,20 +365,20 @@ async function createDonation(req, res) {
             });
           
           if (error) {
-            console.error("Supabase upload error (receipt):", error);
+            console.error("Supabase upload error (GCash receipt):", error);
             if (error.message?.includes("Bucket not found")) {
               return res.status(500).json({ 
                 message: "Storage bucket 'donations' not found. Please create it in Supabase dashboard or contact administrator." 
               });
             }
-            return res.status(500).json({ message: "Failed to upload receipt. Please try again." });
+            return res.status(500).json({ message: "Failed to upload GCash receipt. Please try again." });
           } else {
             receiptUrl = data.path;
-            console.log("Receipt uploaded successfully:", receiptUrl);
+            console.log("GCash receipt uploaded successfully:", receiptUrl);
           }
         } catch (uploadError) {
-          console.error("Error uploading receipt:", uploadError);
-          return res.status(500).json({ message: "Failed to upload receipt. Please try again." });
+          console.error("Error uploading GCash receipt:", uploadError);
+          return res.status(500).json({ message: "Failed to upload GCash receipt. Please try again." });
         }
       }
     }

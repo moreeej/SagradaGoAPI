@@ -2,6 +2,7 @@
 
 const WeddingModel = require("../models/BookWedding");
 const UserModel = require("../models/User");
+const supabase = require("../config/supabaseClient");
 
 /**
  * Generate a unique transaction ID
@@ -45,6 +46,10 @@ function parseFullName(fullName) {
  */
 async function createWedding(req, res) {
   try {
+    console.log("=== Wedding Booking Creation Request ===");
+    console.log("req.body:", req.body);
+    console.log("req.files:", req.files ? JSON.stringify(Object.keys(req.files)) : "No files");
+    
     const {
       uid,
       date,
@@ -137,8 +142,104 @@ async function createWedding(req, res) {
     const groomName = parseFullName(groom_fullname);
     const brideName = parseFullName(bride_fullname);
 
-    // Use marriage_license if available, otherwise use marriage_contract
-    const marriage_docu = marriage_license || marriage_contract;
+    // Helper function to ensure bucket exists (same as donation uploads)
+    const ensureBucketExists = async (bucketName) => {
+      const { data: buckets, error: listError } = await supabase.storage.listBuckets();
+      
+      if (listError) {
+        console.error("Error listing buckets:", listError);
+        return false;
+      }
+      
+      const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
+      
+      if (!bucketExists) {
+        console.log(`Bucket "${bucketName}" does not exist. Attempting to create...`);
+        const { data: createData, error: createError } = await supabase.storage.createBucket(bucketName, {
+          public: false,
+          allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+          fileSizeLimit: 10485760 // 10MB limit for PDFs
+        });
+        
+        if (createError) {
+          console.error(`Error creating bucket "${bucketName}":`, createError);
+          return false;
+        }
+        
+        console.log(`Bucket "${bucketName}" created successfully`);
+      }
+      
+      return true;
+    };
+
+    // Handle uploaded PDF files
+    let uploadedDocuments = {};
+    const documentFields = [
+      'marriage_license', 'marriage_contract', 'groom_baptismal_cert', 'bride_baptismal_cert',
+      'groom_confirmation_cert', 'bride_confirmation_cert', 'groom_cenomar', 'bride_cenomar',
+      'groom_banns', 'bride_banns', 'groom_permission', 'bride_permission',
+      'groom_1x1', 'bride_1x1'
+    ];
+
+    if (req.files) {
+      // Ensure bucket exists
+      const bucketReady = await ensureBucketExists("bookings");
+      if (!bucketReady) {
+        return res.status(500).json({ 
+          message: "Storage bucket not available. Please contact administrator to set up Supabase storage bucket 'bookings'." 
+        });
+      }
+
+      // Process each uploaded file
+      for (const fieldName of documentFields) {
+        if (req.files[fieldName] && req.files[fieldName][0]) {
+          try {
+            const file = req.files[fieldName][0];
+            const fileName = `${Date.now()}-${file.originalname || `${fieldName}.pdf`}`;
+            const folder = fieldName.includes('groom') ? 'wedding/groom' : 
+                          fieldName.includes('bride') ? 'wedding/bride' : 'wedding';
+            
+            console.log(`Uploading ${fieldName} to Supabase: ${fileName}`);
+            
+            const { data, error } = await supabase.storage
+              .from("bookings")
+              .upload(`${folder}/${fileName}`, file.buffer, { 
+                contentType: file.mimetype || 'application/pdf',
+                upsert: false 
+              });
+            
+            if (error) {
+              console.error(`Supabase upload error (${fieldName}):`, error);
+              if (error.message?.includes("Bucket not found")) {
+                return res.status(500).json({ 
+                  message: "Storage bucket 'bookings' not found. Please create it in Supabase dashboard or contact administrator." 
+                });
+              }
+              return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
+            } else {
+              uploadedDocuments[fieldName] = data.path;
+              console.log(`${fieldName} uploaded successfully:`, data.path);
+            }
+          } catch (uploadError) {
+            console.error(`Error uploading ${fieldName}:`, uploadError);
+            return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
+          }
+        }
+      }
+    }
+
+    // Use uploaded file paths or fallback to body values
+    const marriage_docu = uploadedDocuments.marriage_license || uploadedDocuments.marriage_contract || marriage_license || marriage_contract;
+    const finalGroom1x1 = uploadedDocuments.groom_1x1 || groom_1x1;
+    const finalBride1x1 = uploadedDocuments.bride_1x1 || bride_1x1;
+    const finalGroomBaptismal = uploadedDocuments.groom_baptismal_cert || groom_baptismal_cert;
+    const finalBrideBaptismal = uploadedDocuments.bride_baptismal_cert || bride_baptismal_cert;
+    const finalGroomConfirmation = uploadedDocuments.groom_confirmation_cert || groom_confirmation_cert;
+    const finalBrideConfirmation = uploadedDocuments.bride_confirmation_cert || bride_confirmation_cert;
+    const finalGroomCenomar = uploadedDocuments.groom_cenomar || groom_cenomar || '';
+    const finalBrideCenomar = uploadedDocuments.bride_cenomar || bride_cenomar || '';
+    const finalGroomPermission = uploadedDocuments.groom_permission || groom_permission || uploadedDocuments.groom_banns || groom_banns || '';
+    const finalBridePermission = uploadedDocuments.bride_permission || bride_permission || uploadedDocuments.bride_banns || bride_banns || '';
 
     // Generate transaction ID
     const transaction_id = generateTransactionId();
@@ -153,20 +254,20 @@ async function createWedding(req, res) {
       groom_first_name: groomName.first_name,
       groom_middle_name: groomName.middle_name,
       groom_last_name: groomName.last_name,
-      groom_pic: groom_1x1,
+      groom_pic: finalGroom1x1,
       bride_first_name: brideName.first_name,
       bride_middle_name: brideName.middle_name,
       bride_last_name: brideName.last_name,
-      bride_pic: bride_1x1,
+      bride_pic: finalBride1x1,
       marriage_docu,
-      groom_cenomar: groom_cenomar || '',
-      bride_cenomar: bride_cenomar || '',
-      groom_baptismal_cert,
-      bride_baptismal_cert,
-      groom_confirmation_cert,
-      bride_confirmation_cert,
-      groom_permission: groom_permission || groom_banns || '',
-      bride_permission: bride_permission || bride_banns || '',
+      groom_cenomar: finalGroomCenomar,
+      bride_cenomar: finalBrideCenomar,
+      groom_baptismal_cert: finalGroomBaptismal,
+      bride_baptismal_cert: finalBrideBaptismal,
+      groom_confirmation_cert: finalGroomConfirmation,
+      bride_confirmation_cert: finalBrideConfirmation,
+      groom_permission: finalGroomPermission,
+      bride_permission: finalBridePermission,
       status: "pending",
     };
 

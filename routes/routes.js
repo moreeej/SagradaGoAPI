@@ -45,8 +45,23 @@ router.get("/admin/getDonationsByUser/:userId", AdminDonationController.getDonat
 router.get("/admin/getDonationStatistics", AdminDonationController.getDonationStatistics);
 router.get("/admin/getMonthlyDonations", AdminDonationController.getMonthlyDonations);
 
-// Wedding routes (user)
-router.post("/createWedding", WeddingController.createWedding);
+// Wedding routes (user) - with file upload support for PDFs and images
+router.post("/createWedding", upload.fields([
+  { name: "marriage_license", maxCount: 1 },
+  { name: "marriage_contract", maxCount: 1 },
+  { name: "groom_1x1", maxCount: 1 },
+  { name: "bride_1x1", maxCount: 1 },
+  { name: "groom_baptismal_cert", maxCount: 1 },
+  { name: "bride_baptismal_cert", maxCount: 1 },
+  { name: "groom_confirmation_cert", maxCount: 1 },
+  { name: "bride_confirmation_cert", maxCount: 1 },
+  { name: "groom_cenomar", maxCount: 1 },
+  { name: "bride_cenomar", maxCount: 1 },
+  { name: "groom_banns", maxCount: 1 },
+  { name: "bride_banns", maxCount: 1 },
+  { name: "groom_permission", maxCount: 1 },
+  { name: "bride_permission", maxCount: 1 },
+]), WeddingController.createWedding);
 router.post("/getUserWeddings", WeddingController.getUserWeddings);
 router.post("/getWedding", WeddingController.getWedding);
 router.put("/updateWeddingStatus", WeddingController.updateWeddingStatus);
