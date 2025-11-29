@@ -13,7 +13,7 @@ const AnointingController = require("../controllers/AnointingController");
 const ConfirmationController = require("../controllers/ConfirmationController");
 const NotificationController = require("../controllers/NotificationController");
 const VolunteerController = require("../controllers/VolunteerController");
-
+const EventController = require("../controllers/EventController");
 const upload = require("../middleware/upload"); 
 
 // User routes
@@ -149,5 +149,14 @@ router.post("/getUnreadCount", NotificationController.getUnreadCount);
 router.post("/getEventVolunteers", VolunteerController.getEventVolunteers);
 router.post("/getUserVolunteers", VolunteerController.getUserVolunteers);
 router.put("/updateVolunteerStatus", VolunteerController.updateVolunteerStatus);
+
+// User routes (view only)
+router.get("/getAllEvents", EventController.getAllEvents); // all users can see all events
+router.get("/getEvent/:eventId", EventController.getEventById); // view single event
+
+// Admin routes (create/update/delete)
+router.post("/admin/createEvent", upload.single("image"), EventController.createEvent);
+router.put("/admin/updateEvent", upload.single("image"), EventController.updateEvent);
+router.delete("/admin/deleteEvent/:eventId", EventController.deleteEvent);
 
 module.exports = router;  
