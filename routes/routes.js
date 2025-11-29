@@ -162,4 +162,61 @@ router.put("/admin/updateEvent", upload.single("image"), EventController.updateE
 router.delete("/admin/deleteEvent/:eventId", EventController.deleteEvent);
 router.get("/admin/getAllLocations", EventController.getAllLocations);
 
+// Cancel booking route (for all sacrament types)
+router.put("/cancelBooking", async (req, res) => {
+  const { transaction_id, bookingType } = req.body;
+
+  if (!transaction_id || !bookingType) {
+    return res.status(400).json({ message: "transaction_id and bookingType are required" });
+  }
+
+  let Model;
+  switch (bookingType) {
+    case "Wedding": 
+      Model = require("../controllers/WeddingController").WeddingModel; 
+      break;
+
+    case "Baptism": 
+      Model = require("../controllers/BaptismController").BaptismModel; 
+      break;
+
+    case "Burial": 
+      Model = require("../controllers/BurialController").BurialModel; 
+      break;
+
+    case "Communion": 
+      Model = require("../controllers/CommunionController").CommunionModel; 
+      break;
+
+    case "Confirmation": 
+      Model = require("../controllers/ConfirmationController").ConfirmationModel; 
+      break;
+
+    case "Anointing": 
+      Model = require("../controllers/AnointingController").AnointingModel; 
+      break;
+
+    default: 
+      return res.status(400).json({ message: "Invalid bookingType" });
+  }
+
+  try {
+    const result = await Model.updateOne(
+      { transaction_id },
+      { $set: { status: "cancelled" } }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: "Booking not found" });
+    }
+
+    res.json({ message: `${bookingType} booking cancelled successfully` });
+    
+  } catch (err) {
+    console.error("Cancel booking error:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
 module.exports = router;  

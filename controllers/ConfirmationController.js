@@ -528,6 +528,7 @@ async function getAllConfirmations(req, res) {
 }
 
 module.exports = {
+  ConfirmationModel,
   createConfirmation,
   getUserConfirmations,
   getConfirmation,

@@ -553,6 +553,7 @@ async function getAllBurials(req, res) {
 }
 
 module.exports = {
+  BurialModel,
   createBurial,
   getUserBurials,
   getBurial,

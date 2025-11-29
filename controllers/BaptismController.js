@@ -575,6 +575,7 @@ async function getAllBaptisms(req, res) {
 }
 
 module.exports = {
+  BaptismModel,
   createBaptism,
   getUserBaptisms,
   getBaptism,

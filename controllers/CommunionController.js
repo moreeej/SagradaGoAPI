@@ -531,6 +531,7 @@ async function getAllCommunions(req, res) {
 }
 
 module.exports = {
+  CommunionModel,
   createCommunion,
   getUserCommunions,
   getCommunion,

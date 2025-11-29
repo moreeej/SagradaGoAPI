@@ -669,6 +669,7 @@ async function getAllWeddings(req, res) {
 }
 
 module.exports = {
+  WeddingModel,
   createWedding,
   getUserWeddings,
   getWedding,

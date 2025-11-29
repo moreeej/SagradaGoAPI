@@ -319,6 +319,7 @@ async function getAllAnointings(req, res) {
 }
 
 module.exports = {
+  AnointingModel,
   createAnointing,
   getUserAnointings,
   getAnointing,
