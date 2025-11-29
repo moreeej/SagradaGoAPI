@@ -142,6 +142,9 @@ async function createAnointing(req, res) {
 
     // Create anointing booking
     const anointingData = {
+      uid,
+      full_name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
+      email: user.email || '',
       transaction_id,
       date: new Date(date),
       time: time.toString(),
@@ -278,18 +281,35 @@ async function updateAnointingStatus(req, res) {
 }
 
 /**
- * Get all anointing bookings (admin function)
+ * Get all anointing bookings (admin function) with user info
  * GET /api/getAllAnointings
  */
 async function getAllAnointings(req, res) {
   try {
-    const anointings = await AnointingModel.find()
-      .sort({ createdAt: -1 });
+    const anointings = await AnointingModel.find().sort({ createdAt: -1 });
+
+    // Map each booking with user info
+    const results = await Promise.all(
+      anointings.map(async (booking) => {
+        const user = await UserModel.findOne({ uid: booking.uid, is_deleted: false });
+        return {
+          ...booking.toObject(),
+          user: user
+            ? {
+                uid: user.uid,
+                name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
+                email: user.email,
+                contact_number: user.contact_number,
+              }
+            : null,
+        };
+      })
+    );
 
     res.status(200).json({
       message: "All anointing bookings retrieved successfully.",
-      anointings,
-      count: anointings.length,
+      anointings: results,
+      count: results.length,
     });
 
   } catch (err) {
