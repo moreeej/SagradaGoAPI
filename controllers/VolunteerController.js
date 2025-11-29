@@ -83,9 +83,54 @@ async function updateVolunteerStatus(req, res) {
   }
 }
 
+// Add a new volunteer
+async function addVolunteer(req, res) {
+  try {
+    const { name, contact, role, user_id, eventId, eventTitle } = req.body;
+
+    if (!name || !contact || !role || !user_id) {
+      return res.status(400).json({ success: false, message: "Missing required fields." });
+    }
+
+    const newVolunteer = new VolunteerModel({
+      name,
+      contact,
+      role,
+      user_id,
+      event_id: eventId || null,     
+      eventTitle: eventTitle || 'General Volunteer',
+    });
+
+    await newVolunteer.save();
+
+    res.status(200).json({ success: true, volunteer: newVolunteer });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error. Please try again." });
+  }
+}
+
+async function getAllVolunteers(req, res) {
+  try {
+    const volunteers = await VolunteerModel.find({
+      status: { $ne: "cancelled" } // ignore cancelled volunteers
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      message: "All volunteers retrieved successfully.",
+      volunteers,
+    });
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = { 
   getEventVolunteers, 
   getUserVolunteers, 
-  updateVolunteerStatus 
+  updateVolunteerStatus,
+  addVolunteer,
+  getAllVolunteers 
 };
 

@@ -149,6 +149,8 @@ router.post("/getUnreadCount", NotificationController.getUnreadCount);
 router.post("/getEventVolunteers", VolunteerController.getEventVolunteers);
 router.post("/getUserVolunteers", VolunteerController.getUserVolunteers);
 router.put("/updateVolunteerStatus", VolunteerController.updateVolunteerStatus);
+router.post('/addVolunteer', VolunteerController.addVolunteer);
+router.post("/getAllVolunteers", VolunteerController.getAllVolunteers);
 
 // User can view events
 router.get("/getAllEvents", EventController.getAllEvents);
