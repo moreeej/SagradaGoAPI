@@ -1,4 +1,5 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const router = express.Router();
 
 const UserController = require("../controllers/UserController");
@@ -211,12 +212,63 @@ router.put("/cancelBooking", async (req, res) => {
     }
 
     res.json({ message: `${bookingType} booking cancelled successfully` });
-    
+
   } catch (err) {
     console.error("Cancel booking error:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
 
+// Health check route
+router.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    message: "API is running"
+  });
+})
+
+// Health check endpoint
+router.get("/health", async (req, res) => {
+  const dbState = mongoose.connection.readyState; // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+
+  let dbStatus;
+  switch (dbState) {
+    case 0:
+      dbStatus = "disconnected";
+      break;
+
+    case 1:
+      dbStatus = "connected";
+      break;
+
+    case 2:
+      dbStatus = "connecting";
+      break;
+
+    case 3:
+      dbStatus = "disconnecting";
+      break;
+      
+    default:
+      dbStatus = "unknown";
+  }
+
+  if (dbState !== 1) {
+    return res.status(503).json({
+      status: "error",
+      timestamp: new Date().toISOString(),
+      message: "API is running but database is not connected",
+      dbStatus
+    });
+  }
+
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    message: "API and database are healthy",
+    dbStatus
+  });
+});
 
 module.exports = router;  
