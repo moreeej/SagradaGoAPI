@@ -230,7 +230,7 @@ router.get("/health", (req, res) => {
 
 // Health check endpoint
 router.get("/health", async (req, res) => {
-  const dbState = mongoose.connection.readyState; // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+  const dbState = mongoose.connection.readyState; 
 
   let dbStatus;
   switch (dbState) {
@@ -249,7 +249,7 @@ router.get("/health", async (req, res) => {
     case 3:
       dbStatus = "disconnecting";
       break;
-      
+
     default:
       dbStatus = "unknown";
   }
