@@ -1,4 +1,3 @@
-// controllers/ConfessionController.js
 const ConfessionModel = require("../models/BookConfession");
 
 // Create a new Confession booking
@@ -29,8 +28,12 @@ const createConfession = async (req, res) => {
 // Get all confession bookings of a user
 const getUserConfessions = async (req, res) => {
   try {
-    const { uid } = req.params;
+    const { uid } = req.body;   // ✅ read from POST body
+    console.log("Fetching confessions for uid:", uid);
+
     const bookings = await ConfessionModel.find({ uid }).sort({ createdAt: -1 });
+    console.log("Found bookings:", bookings.length);
+
     res.json({ success: true, bookings });
   } catch (err) {
     console.error(err);
