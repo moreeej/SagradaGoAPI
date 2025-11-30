@@ -172,6 +172,17 @@ router.post("/admin/createAnnouncement", AnnouncementController.createAnnounceme
 router.put("/admin/updateAnnouncement/:id", AnnouncementController.updateAnnouncement);
 router.delete("/admin/deleteAnnouncement/:id", AnnouncementController.deleteAnnouncement);
 
+// Confession routes (user)
+const ConfessionController = require("../controllers/ConfessionController");
+
+router.post("/createConfession", ConfessionController.createConfession);
+router.post("/getUserConfessions", ConfessionController.getUserConfessions);
+router.post("/getConfession", ConfessionController.getConfession);
+router.put("/updateConfessionStatus", ConfessionController.updateConfessionStatus);
+
+// Confession routes (admin)
+router.get("/admin/getAllConfessions", ConfessionController.getAllConfessions);
+
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {
   const { transaction_id, bookingType } = req.body;
