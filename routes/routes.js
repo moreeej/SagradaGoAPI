@@ -16,6 +16,7 @@ const NotificationController = require("../controllers/NotificationController");
 const VolunteerController = require("../controllers/VolunteerController");
 const EventController = require("../controllers/EventController");
 const AnnouncementController = require("../controllers/AnnouncementController");
+const ConfessionController = require("../controllers/ConfessionController");
 const upload = require("../middleware/upload"); 
 
 // User routes
@@ -173,8 +174,6 @@ router.put("/admin/updateAnnouncement/:id", AnnouncementController.updateAnnounc
 router.delete("/admin/deleteAnnouncement/:id", AnnouncementController.deleteAnnouncement);
 
 // Confession routes (user)
-const ConfessionController = require("../controllers/ConfessionController");
-
 router.post("/createConfession", ConfessionController.createConfession);
 router.post("/getUserConfessions", ConfessionController.getUserConfessions);
 router.post("/getConfession", ConfessionController.getConfession);

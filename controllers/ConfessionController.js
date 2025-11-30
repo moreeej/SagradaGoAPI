@@ -1,5 +1,5 @@
 // controllers/ConfessionController.js
-const ConfessionModel = require("../models/ConfessionModel");
+const ConfessionModel = require("../models/BookingConfession");
 
 // Create a new Confession booking
 const createConfession = async (req, res) => {
