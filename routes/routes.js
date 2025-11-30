@@ -15,6 +15,7 @@ const ConfirmationController = require("../controllers/ConfirmationController");
 const NotificationController = require("../controllers/NotificationController");
 const VolunteerController = require("../controllers/VolunteerController");
 const EventController = require("../controllers/EventController");
+const AnnouncementController = require("../controllers/AnnouncementController");
 const upload = require("../middleware/upload"); 
 
 // User routes
@@ -162,6 +163,14 @@ router.post("/admin/createEvent", upload.single("image"), EventController.create
 router.put("/admin/updateEvent", upload.single("image"), EventController.updateEvent);
 router.delete("/admin/deleteEvent/:eventId", EventController.deleteEvent);
 router.get("/admin/getAllLocations", EventController.getAllLocations);
+
+// Announcement routes (public for users)
+router.get("/getAnnouncements", AnnouncementController.getAnnouncements);
+
+// Admin announcement routes
+router.post("/admin/createAnnouncement", AnnouncementController.createAnnouncement);
+router.put("/admin/updateAnnouncement/:id", AnnouncementController.updateAnnouncement);
+router.delete("/admin/deleteAnnouncement/:id", AnnouncementController.deleteAnnouncement);
 
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {
