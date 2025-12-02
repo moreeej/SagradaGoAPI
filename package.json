@@ -11,7 +11,7 @@
     "start": "nodemon index.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.85.0",
+    "@supabase/supabase-js": "^2.86.0",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
