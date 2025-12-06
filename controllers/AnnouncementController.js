@@ -12,9 +12,39 @@ const getAnnouncements = async (req, res) => {
 };
 
 /** POST — Create Announcement */
+// const createAnnouncement = async (req, res) => {
+//   try {
+//     const { title, content, date, author, priority, image } = req.body;
+
+//     const newAnnouncement = new AnnouncementModel({
+//       title,
+//       content,
+//       date,
+//       author,
+//       priority,
+//       image,
+//     });
+
+//     await newAnnouncement.save();
+
+//     res.status(201).json({
+//       message: "Announcement created successfully!",
+//       announcement: newAnnouncement,
+//     });
+//   } catch (error) {
+//     console.error("Error creating announcement:", error);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
 const createAnnouncement = async (req, res) => {
   try {
-    const { title, content, date, author, priority, image } = req.body;
+    const { title, content, date, author, priority } = req.body;
+
+    let imageUrl = null;
+    if (req.file) {
+      imageUrl = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    }
 
     const newAnnouncement = new AnnouncementModel({
       title,
@@ -22,7 +52,7 @@ const createAnnouncement = async (req, res) => {
       date,
       author,
       priority,
-      image,
+      image: imageUrl,
     });
 
     await newAnnouncement.save();
@@ -38,13 +68,38 @@ const createAnnouncement = async (req, res) => {
 };
 
 /** PUT — Update Announcement */
+// const updateAnnouncement = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const updated = await AnnouncementModel.findByIdAndUpdate(id, req.body, {
+//       new: true,
+//     });
+
+//     if (!updated)
+//       return res.status(404).json({ message: "Announcement not found" });
+
+//     res.status(200).json({
+//       message: "Announcement updated successfully!",
+//       announcement: updated,
+//     });
+//   } catch (error) {
+//     console.error("Error updating announcement:", error);
+//     res.status(500).json({ message: "Server error" });
+//   }
+// };
+
 const updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const updated = await AnnouncementModel.findByIdAndUpdate(id, req.body, {
-      new: true,
-    });
+    const updateData = { ...req.body };
+
+    if (req.file) {
+      updateData.image = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    }
+
+    const updated = await AnnouncementModel.findByIdAndUpdate(id, updateData, { new: true });
 
     if (!updated)
       return res.status(404).json({ message: "Announcement not found" });
