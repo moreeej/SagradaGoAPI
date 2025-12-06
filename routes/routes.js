@@ -169,18 +169,8 @@ router.get("/admin/getAllLocations", EventController.getAllLocations);
 router.get("/getAnnouncements", AnnouncementController.getAnnouncements);
 
 // Admin announcement routes
-router.post(
-  "/admin/createAnnouncement",
-  upload.single("image"),
-  AnnouncementController.createAnnouncement
-);
-
-router.put(
-  "/admin/updateAnnouncement/:id",
-  upload.single("image"),
-  AnnouncementController.updateAnnouncement
-);
-
+router.post("/admin/createAnnouncement", AnnouncementController.createAnnouncement);
+router.put("/admin/updateAnnouncement/:id", AnnouncementController.updateAnnouncement);
 router.delete("/admin/deleteAnnouncement/:id", AnnouncementController.deleteAnnouncement);
 
 // Confession routes (user)
