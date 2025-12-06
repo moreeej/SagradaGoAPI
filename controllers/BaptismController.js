@@ -409,12 +409,36 @@ async function createBaptism(req, res) {
       const bucketReady = await ensureBucketExists("bookings");
       if (!bucketReady) return res.status(500).json({ message: "Storage bucket not available. Please contact admin." });
 
+      const fs = require('fs');
+
       for (const fieldName of documentFields) {
         if (req.files[fieldName] && req.files[fieldName][0]) {
           const file = req.files[fieldName][0];
+
+          // Convert multer file to buffer
+          let fileBuffer;
+          if (file.buffer) {
+            fileBuffer = file.buffer;
+          } else if (file.path) {
+            fileBuffer = fs.readFileSync(file.path);
+          } else {
+            console.error(`No buffer or path for file ${fieldName}`);
+            continue;
+          }
+
           const fileName = `${Date.now()}-${file.originalname || `${fieldName}.pdf`}`;
-          const { data, error } = await supabase.storage.from("bookings").upload(`baptism/${fileName}`, file.buffer, { contentType: file.mimetype || 'application/pdf', upsert: false });
-          if (error) return res.status(500).json({ message: `Failed to upload ${fieldName}.` });
+          const { data, error } = await supabase.storage
+            .from("bookings")
+            .upload(`baptism/${fileName}`, fileBuffer, {
+              contentType: file.mimetype || 'application/pdf',
+              upsert: false,
+            });
+
+          if (error) {
+            console.error(`Failed to upload ${fieldName}:`, error);
+            return res.status(500).json({ message: `Failed to upload ${fieldName}.` });
+          }
+
           uploadedDocuments[fieldName] = data.path;
         }
       }
@@ -422,42 +446,132 @@ async function createBaptism(req, res) {
 
     const transaction_id = generateTransactionId();
 
+    // Helper function to split name into first, middle, last
+    function splitName(fullName) {
+      if (!fullName || typeof fullName !== 'string') {
+        return { first_name: '', middle_name: '', last_name: '' };
+      }
+      const nameParts = fullName.trim().split(/\s+/);
+      if (nameParts.length === 1) {
+        return { first_name: nameParts[0], middle_name: '', last_name: '' };
+      } else if (nameParts.length === 2) {
+        return { first_name: nameParts[0], middle_name: '', last_name: nameParts[1] };
+      } else {
+        // Assume last part is last name, first part is first name, rest is middle name
+        return {
+          first_name: nameParts[0],
+          middle_name: nameParts.slice(1, -1).join(' '),
+          last_name: nameParts[nameParts.length - 1]
+        };
+      }
+    }
+
     let godfatherData = {}, godmotherData = {}, additionalGodparentsArr = [];
     try {
       if (main_godfather) godfatherData = typeof main_godfather === 'string' ? JSON.parse(main_godfather) : main_godfather;
       if (main_godmother) godmotherData = typeof main_godmother === 'string' ? JSON.parse(main_godmother) : main_godmother;
       if (additional_godparents) additionalGodparentsArr = typeof additional_godparents === 'string' ? JSON.parse(additional_godparents) : additional_godparents;
-    } catch (parseError) { console.error("Error parsing godparent data:", parseError); }
+    } catch (parseError) {
+      console.error("Error parsing godparent data:", parseError);
+    }
 
-    const baptismData = {
-      uid,
-      full_name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
-      email: user.email || '',
-      transaction_id,
-      date: new Date(date),
-      time: time.toString(),
-      attendees: parseInt(attendees),
-      contact_number: contact_number || user.contact_number,
-      main_godfather: godfatherData,
-      main_godmother: godmotherData,
-      additional_godparents: additionalGodparentsArr || [],
-      birth_certificate: uploadedDocuments.birth_certificate || req.body.birth_certificate || '',
-      parents_marriage_certificate: uploadedDocuments.parents_marriage_certificate || req.body.parents_marriage_certificate || '',
-      godparent_confirmation: uploadedDocuments.godparent_confirmation || req.body.godparent_confirmation || '',
-      baptismal_seminar: uploadedDocuments.baptismal_seminar || req.body.baptismal_seminar || '',
-      status: "pending",
-    };
+    // Parse godparent names - handle both old format (first_name, last_name) and new format (name)
+    const godfatherName = splitName(godfatherData.name || godfatherData.first_name || '');
+    const godmotherName = splitName(godmotherData.name || godmotherData.first_name || '');
+
+    // Use user data as defaults for candidate and parents if not provided
+    const userFullNameParts = splitName(`${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim());
+    const defaultCandidateName = userFullNameParts;
+
+const baptismData = {
+  uid,
+  full_name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
+  email: user.email || '',
+  transaction_id,
+  date: new Date(date),
+  time: time.toString(),
+  attendees: parseInt(attendees),
+  contact_number: contact_number || user.contact_number,
+  
+  // Main godfather - parse from name field if provided, otherwise use first_name/last_name
+  main_godfather_first_name: godfatherName.first_name || godfatherData.first_name || 'TBD',
+  main_godfather_last_name: godfatherName.last_name || godfatherData.last_name || 'TBD',
+  main_godfather_middle_name: godfatherName.middle_name || godfatherData.middle_name || '',
+  
+  // Main godmother - parse from name field if provided, otherwise use first_name/last_name
+  main_godmother_first_name: godmotherName.first_name || godmotherData.first_name || 'TBD',
+  main_godmother_last_name: godmotherName.last_name || godmotherData.last_name || 'TBD',
+  main_godmother_middle_name: godmotherName.middle_name || godmotherData.middle_name || '',
+
+  // Candidate - use user data as default if not provided
+  candidate_first_name: req.body.candidate_first_name || defaultCandidateName.first_name || user.first_name || 'TBD',
+  candidate_last_name: req.body.candidate_last_name || defaultCandidateName.last_name || user.last_name || 'TBD',
+  candidate_middle_name: req.body.candidate_middle_name || defaultCandidateName.middle_name || user.middle_name || '',
+  candidate_birthday: req.body.candidate_birthday ? new Date(req.body.candidate_birthday) : (user.birthday ? new Date(user.birthday) : new Date()),
+  candidate_birth_place: req.body.candidate_birth_place || 'TBD',
+
+  // Parents - use defaults if not provided
+  father_first_name: req.body.father_first_name || 'TBD',
+  father_last_name: req.body.father_last_name || 'TBD',
+  father_birth_place: req.body.father_birth_place || 'TBD',
+  mother_first_name: req.body.mother_first_name || 'TBD',
+  mother_last_name: req.body.mother_last_name || 'TBD',
+  mother_birth_place: req.body.mother_birth_place || 'TBD',
+
+  address: req.body.address || 'TBD',
+  marriage_type: req.body.marriage_type || 'TBD',
+
+  additional_godparents: additionalGodparentsArr || [],
+
+  // Documents
+  birth_certificate: uploadedDocuments.birth_certificate || req.body.birth_certificate || '',
+  parents_marriage_certificate: uploadedDocuments.parents_marriage_certificate || req.body.parents_marriage_certificate || '',
+  godparent_confirmation: uploadedDocuments.godparent_confirmation || req.body.godparent_confirmation || '',
+  baptismal_seminar: uploadedDocuments.baptismal_seminar || req.body.baptismal_seminar || '',
+
+  status: "pending",
+};
+
+
+    // Log the data being saved for debugging
+    console.log("Baptism data being saved:", JSON.stringify(baptismData, null, 2));
 
     const newBaptism = new BaptismModel(baptismData);
+    
+    // Validate before saving
+    const validationError = newBaptism.validateSync();
+    if (validationError) {
+      console.error("Validation error:", validationError);
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors: Object.keys(validationError.errors).map(key => ({
+          field: key,
+          message: validationError.errors[key].message
+        }))
+      });
+    }
+
     await newBaptism.save();
 
     res.status(201).json({ message: "Baptism booking created successfully.", baptism: newBaptism, transaction_id });
 
   } catch (err) {
-    console.error("Error creating baptism booking:", err);
+    console.error("Error creating baptism booking:", err.message);
+    console.error("Error stack:", err.stack);
+    if (err.name === 'ValidationError') {
+      const errors = Object.keys(err.errors).map(key => ({
+        field: key,
+        message: err.errors[key].message
+      }));
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors 
+      });
+    }
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
+
 
 /**
  * Get all baptism bookings for a user (include uid, name, email)
