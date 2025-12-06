@@ -24,6 +24,7 @@ router.post("/createUser", UserController.createUser);
 router.post("/findUser", UserController.findUser)
 router.post("/login", UserController.login)
 router.get("/getAllUsers", UserController.getAllUsers)
+router.get("/getAllPriests", UserController.getAllPriests)
 router.post("/checkEmail", UserController.checkEmailExists)
 router.post("/checkContact", UserController.checkContactExists)
 router.put("/updateUser", UserController.updateUser)

@@ -58,6 +58,14 @@ const CommunionSchema = mongoose.Schema(
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
     },
+    priest_id: {
+      type: String,
+      default: null,
+    },
+    priest_name: {
+      type: String,
+      default: '',
+    },
   },
   { timestamps: true }
 );

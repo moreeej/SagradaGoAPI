@@ -65,6 +65,14 @@ const BurialSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
     },
+    priest_id: {
+      type: String,
+      default: null,
+    },
+    priest_name: {
+      type: String,
+      default: '',
+    },
   },
   { timestamps: true }
 );
@@ -72,4 +80,5 @@ const BurialSchema = new mongoose.Schema(
 const BurialModel = mongoose.model("BurialBookings", BurialSchema);
 
 module.exports = BurialModel;
+
 

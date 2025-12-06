@@ -478,7 +478,7 @@ async function getCommunion(req, res) {
  */
 async function updateCommunionStatus(req, res) {
   try {
-    const { transaction_id, status } = req.body;
+    const { transaction_id, status, priest_id, priest_name } = req.body;
     if (!transaction_id) return res.status(400).json({ message: "Transaction ID is required." });
     if (!status) return res.status(400).json({ message: "Status is required." });
 
@@ -489,6 +489,21 @@ async function updateCommunionStatus(req, res) {
     if (!communion) return res.status(404).json({ message: "Communion booking not found." });
 
     communion.status = status;
+    
+    // Assign priest when confirming
+    if (status === "confirmed" && priest_id) {
+      communion.priest_id = priest_id;
+      if (priest_name) {
+        communion.priest_name = priest_name;
+      } else if (priest_id) {
+        // Fetch priest name if not provided
+        const priest = await UserModel.findOne({ uid: priest_id, is_priest: true, is_deleted: false });
+        if (priest) {
+          communion.priest_name = `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim();
+        }
+      }
+    }
+    
     await communion.save();
 
     res.status(200).json({ message: "Communion booking status updated successfully.", communion });

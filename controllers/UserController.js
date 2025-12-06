@@ -770,4 +770,31 @@ async function updateUserStatus(req, res) {
   }
 }
 
-module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus }
+async function getAllPriests(req, res) {
+  try {
+    const priests = await UserModel.find({ 
+      is_priest: true, 
+      is_deleted: false,
+      is_active: true 
+    })
+    .select('uid first_name middle_name last_name email contact_number')
+    .lean();
+
+    const priestsWithFullName = priests.map(priest => ({
+      ...priest,
+      full_name: `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim()
+    }));
+
+    res.status(200).json({ 
+      message: "Priests retrieved successfully.", 
+      priests: priestsWithFullName,
+      count: priestsWithFullName.length 
+    });
+
+  } catch (err) {
+    console.error("Error getting priests:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus, getAllPriests }

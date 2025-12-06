@@ -617,7 +617,7 @@ async function getWedding(req, res) {
  */
 async function updateWeddingStatus(req, res) {
   try {
-    const { transaction_id, status } = req.body;
+    const { transaction_id, status, priest_id, priest_name } = req.body;
     if (!transaction_id) return res.status(400).json({ message: "Transaction ID is required." });
     if (!status) return res.status(400).json({ message: "Status is required." });
 
@@ -628,6 +628,21 @@ async function updateWeddingStatus(req, res) {
     if (!wedding) return res.status(404).json({ message: "Wedding booking not found." });
 
     wedding.status = status;
+    
+    // Assign priest when confirming
+    if (status === "confirmed" && priest_id) {
+      wedding.priest_id = priest_id;
+      if (priest_name) {
+        wedding.priest_name = priest_name;
+      } else if (priest_id) {
+        // Fetch priest name if not provided
+        const priest = await UserModel.findOne({ uid: priest_id, is_priest: true, is_deleted: false });
+        if (priest) {
+          wedding.priest_name = `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim();
+        }
+      }
+    }
+    
     await wedding.save();
 
     res.status(200).json({ message: "Wedding booking status updated successfully.", wedding });

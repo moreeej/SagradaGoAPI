@@ -476,7 +476,7 @@ async function getConfirmation(req, res) {
  */
 async function updateConfirmationStatus(req, res) {
   try {
-    const { transaction_id, status } = req.body;
+    const { transaction_id, status, priest_id, priest_name } = req.body;
     if (!transaction_id) return res.status(400).json({ message: "Transaction ID is required." });
     if (!status) return res.status(400).json({ message: "Status is required." });
 
@@ -487,6 +487,21 @@ async function updateConfirmationStatus(req, res) {
     if (!confirmation) return res.status(404).json({ message: "Confirmation booking not found." });
 
     confirmation.status = status;
+    
+    // Assign priest when confirming
+    if (status === "confirmed" && priest_id) {
+      confirmation.priest_id = priest_id;
+      if (priest_name) {
+        confirmation.priest_name = priest_name;
+      } else if (priest_id) {
+        // Fetch priest name if not provided
+        const priest = await UserModel.findOne({ uid: priest_id, is_priest: true, is_deleted: false });
+        if (priest) {
+          confirmation.priest_name = `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim();
+        }
+      }
+    }
+    
     await confirmation.save();
 
     res.status(200).json({ message: "Confirmation booking status updated successfully.", confirmation });
@@ -535,3 +550,4 @@ module.exports = {
   updateConfirmationStatus,
   getAllConfirmations,
 };
+

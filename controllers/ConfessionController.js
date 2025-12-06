@@ -1,4 +1,5 @@
 const ConfessionModel = require("../models/BookConfession");
+const UserModel = require("../models/User");
 
 // Create a new Confession booking
 const createConfession = async (req, res) => {
@@ -57,20 +58,39 @@ const getConfession = async (req, res) => {
 // Update confession status (pending, confirmed, cancelled)
 const updateConfessionStatus = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
+    const { transaction_id, status, priest_id, priest_name } = req.body;
+
+    if (!transaction_id) {
+      return res.status(400).json({ success: false, message: "Transaction ID is required" });
+    }
 
     if (!["pending", "confirmed", "cancelled"].includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status" });
     }
 
-    const booking = await ConfessionModel.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    );
+    const booking = await ConfessionModel.findOne({ transaction_id });
 
-    if (!booking) return res.status(404).json({ success: false, message: "Booking not found" });
+    if (!booking) {
+      return res.status(404).json({ success: false, message: "Booking not found" });
+    }
+
+    booking.status = status;
+    
+    // Assign priest when confirming
+    if (status === "confirmed" && priest_id) {
+      booking.priest_id = priest_id;
+      if (priest_name) {
+        booking.priest_name = priest_name;
+      } else if (priest_id) {
+        // Fetch priest name if not provided
+        const priest = await UserModel.findOne({ uid: priest_id, is_priest: true, is_deleted: false });
+        if (priest) {
+          booking.priest_name = `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim();
+        }
+      }
+    }
+    
+    await booking.save();
 
     res.json({ success: true, booking });
   } catch (err) {
