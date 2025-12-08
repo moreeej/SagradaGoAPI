@@ -17,6 +17,7 @@ const VolunteerController = require("../controllers/VolunteerController");
 const EventController = require("../controllers/EventController");
 const AnnouncementController = require("../controllers/AnnouncementController");
 const ConfessionController = require("../controllers/ConfessionController");
+const PriestScheduleController = require("../controllers/PriestScheduleController");
 const upload = require("../middleware/upload"); 
 
 // User routes
@@ -182,6 +183,9 @@ router.put("/updateConfessionStatus", ConfessionController.updateConfessionStatu
 
 // Confession routes (admin)
 router.get("/admin/getAllConfessions", ConfessionController.getAllConfessions);
+
+// Priest schedule route
+router.post("/getPriestSchedule", PriestScheduleController.getPriestSchedule);
 
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {
