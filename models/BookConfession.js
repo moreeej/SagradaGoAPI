@@ -44,6 +44,19 @@ const ConfessionSchema = mongoose.Schema(
       type: String,
       default: '',
     },
+    payment_method: {
+      type: String,
+      enum: ['gcash', 'in_person'],
+      default: 'in_person',
+    },
+    proof_of_payment: {
+      type: String,
+      default: '',
+    },
+    amount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

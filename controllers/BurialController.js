@@ -379,6 +379,8 @@ async function createBurial(req, res) {
       death_anniversary,
       funeral_blessing,
       tomb_blessing,
+      payment_method,
+      amount,
     } = req.body;
 
     if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
@@ -391,6 +393,7 @@ async function createBurial(req, res) {
 
     let uploadedDocuments = {};
     const documentFields = ['death_certificate', 'deceased_baptismal'];
+    let proofOfPaymentPath = '';
 
     if (req.files) {
       const bucketReady = await ensureBucketExists("bookings");
@@ -404,6 +407,18 @@ async function createBurial(req, res) {
           if (error) return res.status(500).json({ message: `Failed to upload ${fieldName}.` });
           uploadedDocuments[fieldName] = data.path;
         }
+      }
+
+      // Handle proof of payment upload
+      if (req.files.proof_of_payment && req.files.proof_of_payment[0]) {
+        const file = req.files.proof_of_payment[0];
+        const fileName = `${Date.now()}-${file.originalname || 'proof_of_payment.jpg'}`;
+        const { data, error } = await supabase.storage.from("bookings").upload(`burial/payment/${fileName}`, file.buffer, { 
+          contentType: file.mimetype || 'image/jpeg', 
+          upsert: false 
+        });
+        if (error) return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+        proofOfPaymentPath = data.path;
       }
     }
 
@@ -425,6 +440,9 @@ async function createBurial(req, res) {
       death_certificate: uploadedDocuments.death_certificate || req.body.death_certificate || '',
       deceased_baptismal: uploadedDocuments.deceased_baptismal || req.body.deceased_baptismal || '',
       status: "pending",
+      payment_method: payment_method || 'in_person',
+      proof_of_payment: proofOfPaymentPath,
+      amount: parseFloat(amount) || 0,
     };
 
     const newBurial = new BurialModel(burialData);

@@ -480,7 +480,7 @@ async function ensureBucketExists(bucketName) {
  */
 async function createWedding(req, res) {
   try {
-    const { uid, date, time, attendees, contact_number, groom_fullname, bride_fullname } = req.body;
+    const { uid, date, time, attendees, contact_number, groom_fullname, bride_fullname, payment_method, amount } = req.body;
 
     if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
     if (!date) return res.status(400).json({ message: "Wedding date is required." });
@@ -503,6 +503,8 @@ async function createWedding(req, res) {
       'groom_banns','bride_banns','groom_permission','bride_permission','groom_1x1','bride_1x1'
     ];
 
+    let proofOfPaymentPath = '';
+
     if (req.files) {
       const bucketReady = await ensureBucketExists("bookings");
       if (!bucketReady) return res.status(500).json({ message: "Storage bucket not available." });
@@ -516,6 +518,18 @@ async function createWedding(req, res) {
           if (error) return res.status(500).json({ message: `Failed to upload ${fieldName}.` });
           uploadedDocuments[fieldName] = data.path;
         }
+      }
+
+      // Handle proof of payment upload
+      if (req.files.proof_of_payment && req.files.proof_of_payment[0]) {
+        const file = req.files.proof_of_payment[0];
+        const fileName = `${Date.now()}-${file.originalname || 'proof_of_payment.jpg'}`;
+        const { data, error } = await supabase.storage.from("bookings").upload(`wedding/payment/${fileName}`, file.buffer, { 
+          contentType: file.mimetype || 'image/jpeg', 
+          upsert: false 
+        });
+        if (error) return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+        proofOfPaymentPath = data.path;
       }
     }
 
@@ -546,6 +560,9 @@ async function createWedding(req, res) {
       uid: user.uid,
       name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
       email: user.email || '',
+      payment_method: payment_method || 'in_person',
+      proof_of_payment: proofOfPaymentPath,
+      amount: parseFloat(amount) || 0,
     };
 
     const newWedding = new WeddingModel(weddingData);

@@ -392,7 +392,7 @@ async function ensureBucketExists(bucketName) {
  */
 async function createBaptism(req, res) {
   try {
-    const { uid, date, time, attendees, contact_number, main_godfather, main_godmother, additional_godparents } = req.body;
+    const { uid, date, time, attendees, contact_number, main_godfather, main_godmother, additional_godparents, payment_method, amount } = req.body;
 
     if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
     if (!date) return res.status(400).json({ message: "Baptism date is required." });
@@ -405,6 +405,7 @@ async function createBaptism(req, res) {
     // Handle uploaded PDF files
     let uploadedDocuments = {};
     const documentFields = ['birth_certificate', 'parents_marriage_certificate', 'godparent_confirmation', 'baptismal_seminar'];
+    let proofOfPaymentPath = '';
 
     if (req.files) {
       const bucketReady = await ensureBucketExists("bookings");
@@ -441,6 +442,31 @@ async function createBaptism(req, res) {
           }
 
           uploadedDocuments[fieldName] = data.path;
+        }
+      }
+
+      // Handle proof of payment upload
+      if (req.files.proof_of_payment && req.files.proof_of_payment[0]) {
+        const file = req.files.proof_of_payment[0];
+        let fileBuffer;
+        if (file.buffer) {
+          fileBuffer = file.buffer;
+        } else if (file.path) {
+          fileBuffer = fs.readFileSync(file.path);
+        }
+        if (fileBuffer) {
+          const fileName = `${Date.now()}-${file.originalname || 'proof_of_payment.jpg'}`;
+          const { data, error } = await supabase.storage
+            .from("bookings")
+            .upload(`baptism/payment/${fileName}`, fileBuffer, {
+              contentType: file.mimetype || 'image/jpeg',
+              upsert: false,
+            });
+          if (error) {
+            console.error('Failed to upload proof of payment:', error);
+            return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+          }
+          proofOfPaymentPath = data.path;
         }
       }
     }
@@ -531,6 +557,9 @@ const baptismData = {
   baptismal_seminar: uploadedDocuments.baptismal_seminar || req.body.baptismal_seminar || '',
 
   status: "pending",
+  payment_method: payment_method || 'in_person',
+  proof_of_payment: proofOfPaymentPath,
+  amount: parseFloat(amount) || 0,
 };
 
 

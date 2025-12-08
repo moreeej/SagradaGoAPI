@@ -5,7 +5,7 @@ const { notifyUser } = require("../utils/NotificationHelper");
 // Create a new Confession booking
 const createConfession = async (req, res) => {
   try {
-    const { uid, full_name, email, date, time, attendees } = req.body;
+    const { uid, full_name, email, date, time, attendees, payment_method, amount } = req.body;
 
     // Confession is free, generate a dummy transaction_id
     const transaction_id = `CONF-${Date.now()}`;
@@ -18,6 +18,9 @@ const createConfession = async (req, res) => {
       date,
       time,
       attendees,
+      payment_method: payment_method || 'in_person',
+      proof_of_payment: '',
+      amount: parseFloat(amount) || 0,
     });
 
     res.status(201).json({ success: true, booking });

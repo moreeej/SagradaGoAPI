@@ -63,6 +63,8 @@ async function createAnointing(req, res) {
       attendees,
       contact_number,
       medical_condition,
+      payment_method,
+      amount,
     } = req.body;
 
     // Validate required fields
@@ -92,6 +94,7 @@ async function createAnointing(req, res) {
     // Handle uploaded PDF files
     let uploadedDocuments = {};
     const documentFields = ['medical_certificate'];
+    let proofOfPaymentPath = '';
 
     if (req.files) {
       // Ensure bucket exists
@@ -136,6 +139,28 @@ async function createAnointing(req, res) {
           }
         }
       }
+
+      // Handle proof of payment upload
+      if (req.files.proof_of_payment && req.files.proof_of_payment[0]) {
+        try {
+          const file = req.files.proof_of_payment[0];
+          const fileName = `${Date.now()}-${file.originalname || 'proof_of_payment.jpg'}`;
+          const { data, error } = await supabase.storage
+            .from("bookings")
+            .upload(`anointing/payment/${fileName}`, file.buffer, { 
+              contentType: file.mimetype || 'image/jpeg',
+              upsert: false 
+            });
+          if (error) {
+            console.error('Failed to upload proof of payment:', error);
+            return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+          }
+          proofOfPaymentPath = data.path;
+        } catch (uploadError) {
+          console.error('Error uploading proof of payment:', uploadError);
+          return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+        }
+      }
     }
 
     // Generate transaction ID
@@ -154,6 +179,9 @@ async function createAnointing(req, res) {
       medical_condition: medical_condition || '',
       medical_certificate: uploadedDocuments.medical_certificate || req.body.medical_certificate || '',
       status: "pending",
+      payment_method: payment_method || 'in_person',
+      proof_of_payment: proofOfPaymentPath,
+      amount: parseFloat(amount) || 0,
     };
 
     const newAnointing = new AnointingModel(anointingData);

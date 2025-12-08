@@ -362,7 +362,7 @@ async function ensureBucketExists(bucketName) {
  */
 async function createCommunion(req, res) {
   try {
-    const { uid, date, time, attendees } = req.body;
+    const { uid, date, time, attendees, payment_method, amount } = req.body;
     if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
     if (!date) return res.status(400).json({ message: "Communion date is required." });
     if (!time) return res.status(400).json({ message: "Communion time is required." });
@@ -373,6 +373,7 @@ async function createCommunion(req, res) {
 
     let uploadedDocuments = {};
     const documentFields = ['baptismal_certificate', 'communion_preparation', 'parent_consent'];
+    let proofOfPaymentPath = '';
 
     if (req.files) {
       const bucketReady = await ensureBucketExists("bookings");
@@ -386,6 +387,18 @@ async function createCommunion(req, res) {
           if (error) return res.status(500).json({ message: `Failed to upload ${fieldName}.` });
           uploadedDocuments[fieldName] = data.path;
         }
+      }
+
+      // Handle proof of payment upload
+      if (req.files.proof_of_payment && req.files.proof_of_payment[0]) {
+        const file = req.files.proof_of_payment[0];
+        const fileName = `${Date.now()}-${file.originalname || 'proof_of_payment.jpg'}`;
+        const { data, error } = await supabase.storage.from("bookings").upload(`communion/payment/${fileName}`, file.buffer, { 
+          contentType: file.mimetype || 'image/jpeg', 
+          upsert: false 
+        });
+        if (error) return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+        proofOfPaymentPath = data.path;
       }
     }
 
@@ -404,6 +417,9 @@ async function createCommunion(req, res) {
       communion_preparation: uploadedDocuments.communion_preparation || req.body.communion_preparation || '',
       parent_consent: uploadedDocuments.parent_consent || req.body.parent_consent || '',
       status: "pending",
+      payment_method: payment_method || 'in_person',
+      proof_of_payment: proofOfPaymentPath,
+      amount: parseFloat(amount) || 0,
     };
 
     const newCommunion = new CommunionModel(communionData);

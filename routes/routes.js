@@ -56,6 +56,7 @@ router.get("/admin/getMonthlyDonations", AdminDonationController.getMonthlyDonat
 
 // Wedding routes (user) - with file upload support for PDFs and images
 router.post("/createWedding", upload.fields([
+  { name: 'proof_of_payment', maxCount: 1 },
   { name: "marriage_license", maxCount: 1 },
   { name: "marriage_contract", maxCount: 1 },
   { name: "groom_1x1", maxCount: 1 },
@@ -80,6 +81,7 @@ router.get("/admin/getAllWeddings", WeddingController.getAllWeddings);
 
 // Baptism routes (user) - with file upload support
 router.post("/createBaptism", upload.fields([
+  { name: 'proof_of_payment', maxCount: 1 },
   { name: "birth_certificate", maxCount: 1 },
   { name: "parents_marriage_certificate", maxCount: 1 },
   { name: "godparent_confirmation", maxCount: 1 },
@@ -94,6 +96,7 @@ router.get("/admin/getAllBaptisms", BaptismController.getAllBaptisms);
 
 // Burial routes (user) - with file upload support
 router.post("/createBurial", upload.fields([
+  { name: 'proof_of_payment', maxCount: 1 },
   { name: "death_certificate", maxCount: 1 },
   { name: "deceased_baptismal", maxCount: 1 },
 ]), BurialController.createBurial);
@@ -106,6 +109,7 @@ router.get("/admin/getAllBurials", BurialController.getAllBurials);
 
 // Communion routes (user) - with file upload support
 router.post("/createCommunion", upload.fields([
+  { name: 'proof_of_payment', maxCount: 1 },
   { name: "baptismal_certificate", maxCount: 1 },
   { name: "communion_preparation", maxCount: 1 },
   { name: "parent_consent", maxCount: 1 },
@@ -119,6 +123,7 @@ router.get("/admin/getAllCommunions", CommunionController.getAllCommunions);
 
 // Anointing routes (user) - with file upload support
 router.post("/createAnointing", upload.fields([
+  { name: 'proof_of_payment', maxCount: 1 },
   { name: "medical_certificate", maxCount: 1 },
 ]), AnointingController.createAnointing);
 router.post("/getUserAnointings", AnointingController.getUserAnointings);
@@ -130,6 +135,7 @@ router.get("/admin/getAllAnointings", AnointingController.getAllAnointings);
 
 // Confirmation routes (user) - with file upload support
 router.post("/createConfirmation", upload.fields([
+  { name: 'proof_of_payment', maxCount: 1 },
   { name: "baptismal_certificate", maxCount: 1 },
   { name: "first_communion_certificate", maxCount: 1 },
   { name: "confirmation_preparation", maxCount: 1 },
