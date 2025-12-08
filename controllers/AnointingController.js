@@ -1,6 +1,7 @@
 const AnointingModel = require("../models/BookAnointing");
 const UserModel = require("../models/User");
 const supabase = require("../config/supabaseClient");
+const { notifyUser } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -283,6 +284,61 @@ async function updateAnointingStatus(req, res) {
     }
     
     await anointing.save();
+
+    // Send notifications when booking is confirmed
+    if (status === "confirmed") {
+      try {
+        const bookingDate = new Date(anointing.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const bookingTime = anointing.time || "N/A";
+
+        // Notify the user
+        if (anointing.uid) {
+          await notifyUser(
+            anointing.uid,
+            "booking_status",
+            "Anointing of the Sick Booking Confirmed",
+            `Your Anointing of the Sick booking (${anointing.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${anointing.priest_name ? `, Priest: ${anointing.priest_name}` : ""}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: anointing.transaction_id,
+                booking_type: "Anointing",
+                date: anointing.date,
+                time: anointing.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+
+        // Notify the priest
+        if (priest_id) {
+          await notifyUser(
+            priest_id,
+            "booking_status",
+            "New Anointing of the Sick Assignment",
+            `You have been assigned to an Anointing of the Sick booking (${anointing.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: anointing.transaction_id,
+                booking_type: "Anointing",
+                date: anointing.date,
+                time: anointing.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.status(200).json({
       message: "Anointing booking status updated successfully.",

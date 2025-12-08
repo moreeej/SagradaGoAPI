@@ -320,6 +320,7 @@
 const BurialModel = require("../models/BookBurial");
 const UserModel = require("../models/User");
 const supabase = require("../config/supabaseClient");
+const { notifyUser } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -527,6 +528,61 @@ async function updateBurialStatus(req, res) {
     }
     
     await burial.save();
+
+    // Send notifications when booking is confirmed
+    if (status === "confirmed") {
+      try {
+        const bookingDate = new Date(burial.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const bookingTime = burial.time || "N/A";
+
+        // Notify the user
+        if (burial.uid) {
+          await notifyUser(
+            burial.uid,
+            "booking_status",
+            "Burial Booking Confirmed",
+            `Your burial booking (${burial.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${burial.priest_name ? `, Priest: ${burial.priest_name}` : ""}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: burial.transaction_id,
+                booking_type: "Burial",
+                date: burial.date,
+                time: burial.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+
+        // Notify the priest
+        if (priest_id) {
+          await notifyUser(
+            priest_id,
+            "booking_status",
+            "New Burial Assignment",
+            `You have been assigned to a burial booking (${burial.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: burial.transaction_id,
+                booking_type: "Burial",
+                date: burial.date,
+                time: burial.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.status(200).json({ message: "Burial booking status updated successfully.", burial });
 

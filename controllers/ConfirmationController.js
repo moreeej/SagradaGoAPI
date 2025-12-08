@@ -318,6 +318,7 @@
 const ConfirmationModel = require("../models/BookConfirmation");
 const UserModel = require("../models/User");
 const supabase = require("../config/supabaseClient");
+const { notifyUser } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -503,6 +504,61 @@ async function updateConfirmationStatus(req, res) {
     }
     
     await confirmation.save();
+
+    // Send notifications when booking is confirmed
+    if (status === "confirmed") {
+      try {
+        const bookingDate = new Date(confirmation.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const bookingTime = confirmation.time || "N/A";
+
+        // Notify the user
+        if (confirmation.uid) {
+          await notifyUser(
+            confirmation.uid,
+            "booking_status",
+            "Confirmation Booking Confirmed",
+            `Your Confirmation booking (${confirmation.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${confirmation.priest_name ? `, Priest: ${confirmation.priest_name}` : ""}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: confirmation.transaction_id,
+                booking_type: "Confirmation",
+                date: confirmation.date,
+                time: confirmation.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+
+        // Notify the priest
+        if (priest_id) {
+          await notifyUser(
+            priest_id,
+            "booking_status",
+            "New Confirmation Assignment",
+            `You have been assigned to a Confirmation booking (${confirmation.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: confirmation.transaction_id,
+                booking_type: "Confirmation",
+                date: confirmation.date,
+                time: confirmation.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.status(200).json({ message: "Confirmation booking status updated successfully.", confirmation });
 

@@ -1,5 +1,6 @@
 const ConfessionModel = require("../models/BookConfession");
 const UserModel = require("../models/User");
+const { notifyUser } = require("../utils/NotificationHelper");
 
 // Create a new Confession booking
 const createConfession = async (req, res) => {
@@ -91,6 +92,61 @@ const updateConfessionStatus = async (req, res) => {
     }
     
     await booking.save();
+
+    // Send notifications when booking is confirmed
+    if (status === "confirmed") {
+      try {
+        const bookingDate = new Date(booking.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const bookingTime = booking.time || "N/A";
+
+        // Notify the user
+        if (booking.uid) {
+          await notifyUser(
+            booking.uid,
+            "booking_status",
+            "Confession Booking Confirmed",
+            `Your Confession booking (${booking.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${booking.priest_name ? `, Priest: ${booking.priest_name}` : ""}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: booking.transaction_id,
+                booking_type: "Confession",
+                date: booking.date,
+                time: booking.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+
+        // Notify the priest
+        if (priest_id) {
+          await notifyUser(
+            priest_id,
+            "booking_status",
+            "New Confession Assignment",
+            `You have been assigned to a Confession booking (${booking.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: booking.transaction_id,
+                booking_type: "Confession",
+                date: booking.date,
+                time: booking.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.json({ success: true, booking });
   } catch (err) {

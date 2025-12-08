@@ -318,6 +318,7 @@
 const CommunionModel = require("../models/BookCommunion");
 const UserModel = require("../models/User");
 const supabase = require("../config/supabaseClient");
+const { notifyUser } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -505,6 +506,61 @@ async function updateCommunionStatus(req, res) {
     }
     
     await communion.save();
+
+    // Send notifications when booking is confirmed
+    if (status === "confirmed") {
+      try {
+        const bookingDate = new Date(communion.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const bookingTime = communion.time || "N/A";
+
+        // Notify the user
+        if (communion.uid) {
+          await notifyUser(
+            communion.uid,
+            "booking_status",
+            "First Communion Booking Confirmed",
+            `Your First Communion booking (${communion.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${communion.priest_name ? `, Priest: ${communion.priest_name}` : ""}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: communion.transaction_id,
+                booking_type: "Communion",
+                date: communion.date,
+                time: communion.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+
+        // Notify the priest
+        if (priest_id) {
+          await notifyUser(
+            priest_id,
+            "booking_status",
+            "New First Communion Assignment",
+            `You have been assigned to a First Communion booking (${communion.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: communion.transaction_id,
+                booking_type: "Communion",
+                date: communion.date,
+                time: communion.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.status(200).json({ message: "Communion booking status updated successfully.", communion });
 

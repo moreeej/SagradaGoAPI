@@ -432,6 +432,7 @@
 const WeddingModel = require("../models/BookWedding");
 const UserModel = require("../models/User");
 const supabase = require("../config/supabaseClient");
+const { notifyUser } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -644,6 +645,61 @@ async function updateWeddingStatus(req, res) {
     }
     
     await wedding.save();
+
+    // Send notifications when booking is confirmed
+    if (status === "confirmed") {
+      try {
+        const bookingDate = new Date(wedding.date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+        const bookingTime = wedding.time || "N/A";
+
+        // Notify the user
+        if (wedding.uid) {
+          await notifyUser(
+            wedding.uid,
+            "booking_status",
+            "Wedding Booking Confirmed",
+            `Your wedding booking (${wedding.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${wedding.priest_name ? `, Priest: ${wedding.priest_name}` : ""}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: wedding.transaction_id,
+                booking_type: "Wedding",
+                date: wedding.date,
+                time: wedding.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+
+        // Notify the priest
+        if (priest_id) {
+          await notifyUser(
+            priest_id,
+            "booking_status",
+            "New Wedding Assignment",
+            `You have been assigned to a wedding booking (${wedding.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: wedding.transaction_id,
+                booking_type: "Wedding",
+                date: wedding.date,
+                time: wedding.time,
+              },
+              priority: "high",
+            }
+          );
+        }
+      } catch (notificationError) {
+        console.error("Error sending notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.status(200).json({ message: "Wedding booking status updated successfully.", wedding });
 
