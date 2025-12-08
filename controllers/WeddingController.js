@@ -756,6 +756,32 @@ async function getAllWeddings(req, res) {
   }
 }
 
+/**
+ * Get proof of payment image URL
+ * GET /api/getProofOfPayment?path=wedding/payment/filename.jpg
+ */
+async function getProofOfPayment(req, res) {
+  try {
+    const { path } = req.query;
+    
+    if (!path) {
+      return res.status(400).json({ message: "Path parameter is required." });
+    }
+
+    const supabase = require("../config/supabaseClient");
+    const { data } = supabase.storage.from("bookings").getPublicUrl(path);
+    
+    if (data?.publicUrl) {
+      return res.json({ url: data.publicUrl });
+    } else {
+      return res.status(404).json({ message: "Proof of payment not found." });
+    }
+  } catch (err) {
+    console.error("Error getting proof of payment:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   WeddingModel,
   createWedding,
@@ -763,4 +789,5 @@ module.exports = {
   getWedding,
   updateWeddingStatus,
   getAllWeddings,
+  getProofOfPayment,
 };

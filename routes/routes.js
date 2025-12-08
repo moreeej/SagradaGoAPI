@@ -79,6 +79,9 @@ router.put("/updateWeddingStatus", WeddingController.updateWeddingStatus);
 // Wedding routes (admin)
 router.get("/admin/getAllWeddings", WeddingController.getAllWeddings);
 
+// Proof of payment route (public)
+router.get("/getProofOfPayment", WeddingController.getProofOfPayment);
+
 // Baptism routes (user) - with file upload support
 router.post("/createBaptism", upload.fields([
   { name: 'proof_of_payment', maxCount: 1 },
