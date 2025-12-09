@@ -714,7 +714,6 @@ async function updateWeddingStatus(req, res) {
         }
       } catch (notificationError) {
         console.error("Error sending notifications:", notificationError);
-        // Don't fail the request if notifications fail
       }
     }
 
