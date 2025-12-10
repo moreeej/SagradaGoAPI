@@ -161,8 +161,24 @@ const updateConfessionStatus = async (req, res) => {
 // Get all confession bookings (admin)
 const getAllConfessions = async (req, res) => {
   try {
-    const bookings = await ConfessionModel.find().sort({ createdAt: -1 });
-    res.json({ success: true, bookings });
+    const bookings = await ConfessionModel.find().sort({ createdAt: -1 }).lean();
+
+    const userIds = bookings.map(b => b.uid).filter(Boolean);
+    const users = await UserModel.find({ uid: { $in: userIds }, is_deleted: false }).lean();
+    const userMap = {};
+    users.forEach(u => { userMap[u.uid] = u; });
+
+    const bookingsWithUser = bookings.map(b => {
+      const user = userMap[b.uid];
+      return {
+        ...b,
+        uid: user?.uid || b.uid,
+        name: user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : (b.full_name || "N/A"),
+        email: user?.email || b.email || "N/A",
+      };
+    });
+
+    res.json({ success: true, bookings: bookingsWithUser });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: err.message });
