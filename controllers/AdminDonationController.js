@@ -23,7 +23,28 @@ async function getAllDonations(req, res) {
     const donations = await DonationModel.find(query)
       .sort({ createdAt: -1 }) // Newest first
       .skip(skip)
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
+
+    // Get unique user IDs and fetch updated user data
+    const userIds = [...new Set(donations.map(d => d.user_id).filter(Boolean))];
+    const users = await UserModel.find({ uid: { $in: userIds }, is_deleted: false }).lean();
+    const userMap = {};
+    users.forEach(u => { userMap[u.uid] = u; });
+
+    // Map donations with updated user information
+    const donationsWithUser = donations.map(donation => {
+      const user = userMap[donation.user_id];
+      return {
+        ...donation,
+        // Add updated user name and email, fallback to stored values
+        user_name: user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : donation.user_name,
+        user_email: user?.email || donation.user_email,
+        // Also add name and email fields for consistency with bookings
+        name: user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : donation.user_name,
+        email: user?.email || donation.user_email,
+      };
+    });
 
     // Get total count
     const totalCount = await DonationModel.countDocuments(query);
@@ -38,7 +59,7 @@ async function getAllDonations(req, res) {
 
     res.status(200).json({
       message: "Donations retrieved successfully.",
-      donations,
+      donations: donationsWithUser,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
