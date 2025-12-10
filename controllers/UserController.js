@@ -623,6 +623,19 @@ async function updateUser(req, res) {
       }
     }
 
+    // Store old values to check if name or contact changed
+    const oldFirstName = user.first_name || '';
+    const oldMiddleName = user.middle_name || '';
+    const oldLastName = user.last_name || '';
+    const oldContact = user.contact_number || '';
+    
+    // Build old full name for comparison
+    const oldFullName = [
+      oldFirstName,
+      oldMiddleName,
+      oldLastName
+    ].filter(Boolean).join(' ').trim();
+
     // Update user fields
     if (first_name !== undefined) user.first_name = first_name;
     if (middle_name !== undefined) user.middle_name = middle_name;
@@ -635,6 +648,43 @@ async function updateUser(req, res) {
     if (is_priest !== undefined) user.is_priest = is_priest;
 
     await user.save();
+
+    // Build the new full name
+    const newFullName = [
+      user.first_name || '',
+      user.middle_name || '',
+      user.last_name || ''
+    ].filter(Boolean).join(' ').trim();
+
+    // Check if name or contact actually changed
+    const nameChanged = newFullName !== oldFullName;
+    const contactChanged = (user.contact_number || '') !== oldContact;
+
+    // Update all volunteer records if name or contact changed
+    if (nameChanged || contactChanged) {
+      try {
+        const updateFields = {};
+        
+        if (nameChanged && newFullName) {
+          updateFields.name = newFullName;
+        }
+        
+        if (contactChanged && user.contact_number) {
+          updateFields.contact = user.contact_number;
+        }
+
+        if (Object.keys(updateFields).length > 0) {
+          const updateResult = await VolunteerModel.updateMany(
+            { user_id: user.uid },
+            { $set: updateFields }
+          );
+          console.log(`Updated ${updateResult.modifiedCount} volunteer records for user ${user.uid}`);
+        }
+      } catch (volunteerUpdateError) {
+        console.error('Error updating volunteer records:', volunteerUpdateError);
+        // Don't fail the user update if volunteer update fails, but log it
+      }
+    }
 
     // Get user's volunteers from Volunteer collection
     const userVolunteers = await VolunteerModel.find({ user_id: user.uid });
