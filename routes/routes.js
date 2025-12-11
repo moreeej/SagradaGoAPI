@@ -20,6 +20,13 @@ const ConfessionController = require("../controllers/ConfessionController");
 const PriestScheduleController = require("../controllers/PriestScheduleController");
 const upload = require("../middleware/upload"); 
 
+
+
+
+// Web Routes
+
+router.post("/createWeddingBooking", WeddingController.AddWeddingBookingWeb)
+
 // User routes
 router.post("/createUser", UserController.createUser);
 router.post("/findUser", UserController.findUser)
