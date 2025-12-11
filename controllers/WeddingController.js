@@ -781,7 +781,7 @@ async function getProofOfPayment(req, res) {
   }
 }
 
-async function AddWeddingBookingWeb() {
+async function AddWeddingBookingWeb(req, res) {
   try {
     const {
       uid,
