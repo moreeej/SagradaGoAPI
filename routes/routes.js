@@ -18,6 +18,7 @@ const EventController = require("../controllers/EventController");
 const AnnouncementController = require("../controllers/AnnouncementController");
 const ConfessionController = require("../controllers/ConfessionController");
 const PriestScheduleController = require("../controllers/PriestScheduleController");
+const ChatController = require("../controllers/ChatController");
 const upload = require("../middleware/upload"); 
 
 
@@ -202,6 +203,13 @@ router.get("/admin/getAllConfessions", ConfessionController.getAllConfessions);
 
 // Priest schedule route
 router.post("/getPriestSchedule", PriestScheduleController.getPriestSchedule);
+
+// Chat routes
+router.post("/chat/getOrCreateChat", ChatController.getOrCreateChat);
+router.get("/chat/getAllChats", ChatController.getAllChats);
+router.get("/chat/getChatByUserId/:userId", ChatController.getChatByUserId);
+router.post("/chat/markAsRead", ChatController.markAsRead);
+router.get("/chat/getUnreadCount", ChatController.getUnreadCount);
 
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {
