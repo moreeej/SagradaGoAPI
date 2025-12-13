@@ -438,6 +438,8 @@
 // };
 
 
+
+
 // BERLENE'S VERSION
 const WeddingModel = require("../models/BookWedding");
 const UserModel = require("../models/User");
@@ -639,7 +641,8 @@ async function getUserWeddings(req, res) {
     const user = await UserModel.findOne({ uid, is_deleted: false });
     if (!user) return res.status(404).json({ message: "User not found." });
 
-    const weddings = await WeddingModel.find({ contact_number: user.contact_number }).sort({ createdAt: -1 }).lean();
+    // Match by uid instead of contact_number since wedding bookings now store uid
+    const weddings = await WeddingModel.find({ uid: user.uid }).sort({ createdAt: -1 }).lean();
     const weddingsWithUser = weddings.map(w => ({
       ...w,
       uid: user.uid,
