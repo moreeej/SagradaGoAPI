@@ -19,6 +19,7 @@ const AnnouncementController = require("../controllers/AnnouncementController");
 const ConfessionController = require("../controllers/ConfessionController");
 const PriestScheduleController = require("../controllers/PriestScheduleController");
 const ChatController = require("../controllers/ChatController");
+const BookingConflictController = require("../controllers/BookingConflictController");
 const upload = require("../middleware/upload"); 
 
 
@@ -203,6 +204,9 @@ router.get("/admin/getAllConfessions", ConfessionController.getAllConfessions);
 
 // Priest schedule route
 router.post("/getPriestSchedule", PriestScheduleController.getPriestSchedule);
+
+// Booking conflict check route
+router.post("/checkBookingConflict", BookingConflictController.checkBookingConflict);
 
 // Chat routes
 router.post("/chat/getOrCreateChat", ChatController.getOrCreateChat);
