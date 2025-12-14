@@ -2,10 +2,47 @@ const ConfessionModel = require("../models/BookConfession");
 const UserModel = require("../models/User");
 const { notifyUser } = require("../utils/NotificationHelper");
 
+/**
+ * Normalize time to HH:MM format
+ * Handles ISO strings, Date objects, or already formatted HH:MM strings
+ */
+function normalizeTime(time) {
+  if (!time) return '';
+  
+  // If already in HH:MM format, return as is
+  if (typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)) {
+    return time;
+  }
+  
+  // If it's a Date object or ISO string, extract hours and minutes
+  let dateObj;
+  if (time instanceof Date) {
+    dateObj = time;
+  } else if (typeof time === 'string') {
+    // Try to parse as Date
+    dateObj = new Date(time);
+    if (isNaN(dateObj.getTime())) {
+      // If parsing fails, try to extract HH:MM from string
+      const timeMatch = time.match(/(\d{2}):(\d{2})/);
+      if (timeMatch) {
+        return `${timeMatch[1]}:${timeMatch[2]}`;
+      }
+      return time; // Return as is if we can't parse it
+    }
+  } else {
+    return String(time);
+  }
+  
+  // Format as HH:MM
+  const hours = dateObj.getHours().toString().padStart(2, '0');
+  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
 // Create a new Confession booking
 const createConfession = async (req, res) => {
   try {
-    const { uid, full_name, email, date, time, attendees, payment_method, amount } = req.body;
+    const { uid, full_name, email, date, time, attendees } = req.body;
 
     // Confession is free, generate a dummy transaction_id
     const transaction_id = `CONF-${Date.now()}`;
@@ -16,11 +53,8 @@ const createConfession = async (req, res) => {
       email,
       transaction_id,
       date,
-      time,
+      time: normalizeTime(time),
       attendees,
-      payment_method: payment_method || 'in_person',
-      proof_of_payment: '',
-      amount: parseFloat(amount) || 0,
     });
 
     res.status(201).json({ success: true, booking });
@@ -161,24 +195,8 @@ const updateConfessionStatus = async (req, res) => {
 // Get all confession bookings (admin)
 const getAllConfessions = async (req, res) => {
   try {
-    const bookings = await ConfessionModel.find().sort({ createdAt: -1 }).lean();
-
-    const userIds = bookings.map(b => b.uid).filter(Boolean);
-    const users = await UserModel.find({ uid: { $in: userIds }, is_deleted: false }).lean();
-    const userMap = {};
-    users.forEach(u => { userMap[u.uid] = u; });
-
-    const bookingsWithUser = bookings.map(b => {
-      const user = userMap[b.uid];
-      return {
-        ...b,
-        uid: user?.uid || b.uid,
-        name: user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : (b.full_name || "N/A"),
-        email: user?.email || b.email || "N/A",
-      };
-    });
-
-    res.json({ success: true, bookings: bookingsWithUser });
+    const bookings = await ConfessionModel.find().sort({ createdAt: -1 });
+    res.json({ success: true, bookings });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: err.message });
