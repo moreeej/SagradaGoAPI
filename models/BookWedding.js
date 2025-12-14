@@ -7,10 +7,10 @@ const WeddingSchema = new mongoose.Schema(
       required: true 
 
     },
-    full_name: { 
-      type: String, 
-      default: '' 
-    },
+    // full_name: { 
+    //   type: String, 
+    //   default: '' 
+    // },
     email: { 
       type: String, 
       default: '' 
