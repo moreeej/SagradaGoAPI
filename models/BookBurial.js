@@ -36,6 +36,38 @@ const BurialSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    deceased_name: {
+      type: String,
+      default: '',
+    },
+    deceased_age: {
+      type: String,
+      default: '',
+    },
+    deceased_civil_status: {
+      type: String,
+      default: '',
+    },
+    requested_by: {
+      type: String,
+      default: '',
+    },
+    relationship_to_deceased: {
+      type: String,
+      default: '',
+    },
+    address: {
+      type: String,
+      default: '',
+    },
+    place_of_mass: {
+      type: String,
+      default: '',
+    },
+    mass_address: {
+      type: String,
+      default: '',
+    },
     funeral_mass: {
       type: Boolean,
       default: false,
