@@ -215,6 +215,11 @@ router.get("/chat/getChatByUserId/:userId", ChatController.getChatByUserId);
 router.post("/chat/markAsRead", ChatController.markAsRead);
 router.get("/chat/getUnreadCount", ChatController.getUnreadCount);
 
+// AI Chatbot routes
+router.post("/chat/ai/response", ChatController.getAIResponse);
+router.post("/chat/ai/history", ChatController.getAIChatHistory);
+router.post("/chat/ai/clear", ChatController.clearAIChatHistory);
+
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {
   const { transaction_id, bookingType } = req.body;
