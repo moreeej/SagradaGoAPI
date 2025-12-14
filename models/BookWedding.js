@@ -123,7 +123,7 @@ const WeddingSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      default: 0,
+      default: 5000,
     },
   },
   { timestamps: true }
