@@ -19,7 +19,6 @@ if (!admin.apps.length) {
  */
 async function sendToUser({ userId, title, body, type = "general", metadata = {} }) {
   try {
-    // Fetch user's FCM token from your database
     const user = await User.findById(userId);
 
     if (!user || !user.fcmToken) {
