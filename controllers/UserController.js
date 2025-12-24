@@ -763,6 +763,42 @@ async function addVolunteer(req, res) {
 
     await newVolunteer.save();
 
+    // Notify all admins about the new volunteer
+    try {
+      const AdminModel = require("../models/Admin");
+      const { notifyAllAdmins } = require("../utils/NotificationHelper");
+      
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        const eventInfo = volunteer.eventTitle && volunteer.eventTitle !== 'General Volunteer' 
+          ? ` for ${volunteer.eventTitle}` 
+          : '';
+        
+        await notifyAllAdmins(
+          adminIds,
+          "volunteer",
+          "New Volunteer Sign-up",
+          `${userName} has signed up as ${volunteer.role}${eventInfo}.`,
+          {
+            action: "VolunteersList",
+            metadata: {
+              volunteer_id: newVolunteer._id.toString(),
+              user_id: uid,
+              user_name: userName,
+              role: volunteer.role,
+              event_title: volunteer.eventTitle || 'General Volunteer',
+            },
+            priority: "medium",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for volunteer:", notificationError);
+      // Don't fail the request if notifications fail
+    }
+
     // Get all volunteers for this user to return
     const userVolunteers = await VolunteerModel.find({ user_id: uid });
 

@@ -1,5 +1,7 @@
 const VolunteerModel = require("../models/Volunteer");
 const UserModel = require("../models/User");
+const AdminModel = require("../models/Admin");
+const { notifyAllAdmins } = require("../utils/NotificationHelper");
 
 // Get all volunteers for a specific event
 async function getEventVolunteers(req, res) {
@@ -103,6 +105,47 @@ async function addVolunteer(req, res) {
     });
 
     await newVolunteer.save();
+
+    // Notify all admins about the new volunteer
+    try {
+      // Get user information if user_id is provided
+      let userName = name;
+      if (user_id) {
+        const user = await UserModel.findOne({ uid: user_id, is_deleted: false });
+        if (user) {
+          userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        }
+      }
+      
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const eventInfo = eventTitle && eventTitle !== 'General Volunteer' 
+          ? ` for ${eventTitle}` 
+          : '';
+        
+        await notifyAllAdmins(
+          adminIds,
+          "volunteer",
+          "New Volunteer Sign-up",
+          `${userName} has signed up as ${role}${eventInfo}.`,
+          {
+            action: "VolunteersList",
+            metadata: {
+              volunteer_id: newVolunteer._id.toString(),
+              user_id: user_id || null,
+              user_name: userName,
+              role: role,
+              event_title: eventTitle || 'General Volunteer',
+            },
+            priority: "medium",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for volunteer:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(200).json({ success: true, volunteer: newVolunteer });
   } catch (err) {
