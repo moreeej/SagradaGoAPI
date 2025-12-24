@@ -539,12 +539,127 @@ async function clearChatHistory(userId) {
   }
 }
 
+/**
+ * Analyze dashboard statistics using AI
+ * @param {Object} stats - Dashboard statistics object
+ * @returns {Promise<string>} - AI-generated analysis
+ */
+async function analyzeDashboardStats(stats) {
+  try {
+    if (!geminiApiKey) {
+      throw new Error("API key not configured");
+    }
+
+    const statsPrompt = `You are an AI assistant analyzing dashboard statistics for a parish management system. Analyze the following statistics and provide insights, trends, and recommendations in a concise, professional format (3-4 paragraphs max):
+
+OVERVIEW STATISTICS:
+- Total Users: ${stats.totalUsers || 0}
+- Total Priests: ${stats.totalPriests || 0}
+- Pending Bookings: ${stats.pendingBookings || 0}
+- Total Bookings: ${stats.totalBookings || 0}
+- Confirmed Bookings: ${stats.confirmedBookings || 0}
+- Total Volunteers: ${stats.totalVolunteers || 0}
+
+DONATION STATISTICS:
+- Total Donations: ₱${(stats.totalDonations || 0).toLocaleString()}
+- Current Month Donations: ₱${(stats.monthlyDonations || 0).toLocaleString()}
+- Confirmed Donations: ₱${(stats.donationBreakdown?.confirmed || 0).toLocaleString()} (${stats.donationBreakdown?.confirmedCount || 0} donations)
+- Pending Donations: ₱${(stats.donationBreakdown?.pending || 0).toLocaleString()} (${stats.donationBreakdown?.pendingCount || 0} donations)
+
+MONTHLY DONATION BREAKDOWN (Last 12 Months):
+${stats.monthlyDonationBreakdown && stats.monthlyDonationBreakdown.length > 0 ? stats.monthlyDonationBreakdown.map(m => `- ${m.month} ${m.year}: ₱${(m.amount || 0).toLocaleString()} (${m.count || 0} donations)`).join('\n') : 'No monthly data available'}
+
+TOP DONATION MONTHS:
+${stats.topDonationMonths && stats.topDonationMonths.length > 0 ? stats.topDonationMonths.map((m, i) => `${i + 1}. ${m.month} ${m.year}: ₱${(m.amount || 0).toLocaleString()} (${m.count || 0} donations)`).join('\n') : 'No data available'}
+
+BOOKING BREAKDOWN BY TYPE:
+${stats.bookingBreakdown ? Object.entries(stats.bookingBreakdown).map(([type, count]) => `- ${type}: ${count}`).join('\n') : 'No booking data available'}
+
+MONTHLY BOOKING BREAKDOWN (Last 12 Months - Busiest Months):
+${stats.monthlyBookingBreakdown && stats.monthlyBookingBreakdown.length > 0 ? stats.monthlyBookingBreakdown.map(m => `- ${m.month} ${m.year}: ${m.total || 0} bookings${m.byType && Object.keys(m.byType).length > 0 ? ` (${Object.entries(m.byType).map(([type, count]) => `${type}: ${count}`).join(', ')})` : ''}`).join('\n') : 'No monthly booking data available'}
+
+BUSIEST BOOKING MONTHS:
+${stats.busiestBookingMonths && stats.busiestBookingMonths.length > 0 ? stats.busiestBookingMonths.map((m, i) => `${i + 1}. ${m.month} ${m.year}: ${m.total || 0} bookings${m.byType && Object.keys(m.byType).length > 0 ? ` (${Object.entries(m.byType).map(([type, count]) => `${type}: ${count}`).join(', ')})` : ''}`).join('\n') : 'No data available'}
+
+Provide actionable insights about:
+1. Donation trends - highlight peak months, growth patterns, and areas for improvement
+2. Booking patterns - identify busiest months, popular sacrament types, and seasonal trends
+3. Areas that need attention (pending items, low activity periods)
+4. Recommendations for improvement (resource allocation, marketing opportunities, operational efficiency)
+5. Positive highlights and achievements
+
+Keep the response professional, concise, and focused on actionable insights. Highlight the most significant trends and patterns.`;
+
+    // Try REST API first
+    try {
+      const availableModels = await getAvailableModels();
+      const modelsToTry = availableModels.length > 0 ? availableModels : ["gemini-pro", "models/gemini-pro"];
+      
+      for (const modelName of modelsToTry) {
+        const apiVersions = ["v1", "v1beta"];
+        
+        for (const version of apiVersions) {
+          try {
+            const url = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${geminiApiKey}`;
+            const response = await axios.post(
+              url,
+              {
+                contents: [{
+                  parts: [{ text: statsPrompt }]
+                }]
+              },
+              {
+                headers: {
+                  "Content-Type": "application/json"
+                }
+              }
+            );
+
+            if (response.data && response.data.candidates && response.data.candidates[0]) {
+              const analysis = response.data.candidates[0].content.parts[0].text;
+              console.log(`Successfully generated stats analysis using ${modelName} (${version})`);
+              return analysis;
+            }
+          } catch (error) {
+            console.log(`REST API ${version}/${modelName} failed:`, error.response?.status || error.message);
+            continue;
+          }
+        }
+      }
+    } catch (restError) {
+      console.log("REST API failed, trying SDK:", restError.message);
+    }
+
+    // Fallback to SDK
+    if (!genAI) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+      if (!apiKey) {
+        throw new Error("API key not configured");
+      }
+      genAI = new GoogleGenerativeAI(apiKey);
+    }
+
+    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash-001";
+    const model = genAI.getGenerativeModel({ model: modelName });
+    
+    const result = await model.generateContent(statsPrompt);
+    const response = await result.response;
+    const analysis = response.text();
+
+    return analysis;
+  } catch (error) {
+    console.error("Error analyzing dashboard stats:", error);
+    return "Unable to generate AI analysis at this time. Please try again later.";
+  }
+}
+
 module.exports = {
   getAIResponse,
   getConversationHistory,
   saveMessage,
   getChatHistory,
   clearChatHistory,
+  analyzeDashboardStats,
 };
 
 
