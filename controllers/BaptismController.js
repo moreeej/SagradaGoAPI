@@ -342,8 +342,9 @@
 
 const BaptismModel = require("../models/BookBaptism");
 const UserModel = require("../models/User");
+const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
-const { notifyUser } = require("../utils/NotificationHelper");
+const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -582,6 +583,35 @@ const baptismData = {
     }
 
     await newBaptism.save();
+
+    // Notify all admins about the new booking
+    try {
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        await notifyAllAdmins(
+          adminIds,
+          "booking",
+          "New Baptism Booking",
+          `${userName} has submitted a new Baptism booking request.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: newBaptism._id.toString(),
+              transaction_id: transaction_id,
+              user_id: uid,
+              user_name: userName,
+              sacrament_type: "Baptism",
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for baptism booking:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(201).json({ message: "Baptism booking created successfully.", baptism: newBaptism, transaction_id });
 

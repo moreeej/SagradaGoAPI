@@ -317,8 +317,9 @@
 
 const CommunionModel = require("../models/BookCommunion");
 const UserModel = require("../models/User");
+const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
-const { notifyUser } = require("../utils/NotificationHelper");
+const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -424,6 +425,35 @@ async function createCommunion(req, res) {
 
     const newCommunion = new CommunionModel(communionData);
     await newCommunion.save();
+
+    // Notify all admins about the new booking
+    try {
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        await notifyAllAdmins(
+          adminIds,
+          "booking",
+          "New First Communion Booking",
+          `${userName} has submitted a new First Communion booking request.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: newCommunion._id.toString(),
+              transaction_id: transaction_id,
+              user_id: uid,
+              user_name: userName,
+              sacrament_type: "First Communion",
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for communion booking:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(201).json({ message: "Communion booking created successfully.", communion: newCommunion, transaction_id });
 

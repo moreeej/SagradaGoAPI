@@ -319,8 +319,9 @@
 
 const BurialModel = require("../models/BookBurial");
 const UserModel = require("../models/User");
+const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
-const { notifyUser } = require("../utils/NotificationHelper");
+const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -445,6 +446,35 @@ async function createBurial(req, res) {
 
     const newBurial = new BurialModel(burialData);
     await newBurial.save();
+
+    // Notify all admins about the new booking
+    try {
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        await notifyAllAdmins(
+          adminIds,
+          "booking",
+          "New Burial Booking",
+          `${userName} has submitted a new Burial booking request.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: newBurial._id.toString(),
+              transaction_id: transaction_id,
+              user_id: uid,
+              user_name: userName,
+              sacrament_type: "Burial",
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for burial booking:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(201).json({ message: "Burial booking created successfully.", burial: newBurial, transaction_id });
 

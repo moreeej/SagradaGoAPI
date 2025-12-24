@@ -317,8 +317,9 @@
 
 const ConfirmationModel = require("../models/BookConfirmation");
 const UserModel = require("../models/User");
+const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
-const { notifyUser } = require("../utils/NotificationHelper");
+const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -425,6 +426,35 @@ async function createConfirmation(req, res) {
 
     const newConfirmation = new ConfirmationModel(confirmationData);
     await newConfirmation.save();
+
+    // Notify all admins about the new booking
+    try {
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        await notifyAllAdmins(
+          adminIds,
+          "booking",
+          "New Confirmation Booking",
+          `${userName} has submitted a new Confirmation booking request.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: newConfirmation._id.toString(),
+              transaction_id: transaction_id,
+              user_id: uid,
+              user_name: userName,
+              sacrament_type: "Confirmation",
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for confirmation booking:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(201).json({ message: "Confirmation booking created successfully.", confirmation: newConfirmation, transaction_id });
 

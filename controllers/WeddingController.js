@@ -443,8 +443,9 @@
 // BERLENE'S VERSION
 const WeddingModel = require("../models/BookWedding");
 const UserModel = require("../models/User");
+const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
-const { notifyUser } = require("../utils/NotificationHelper");
+const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 
 /**
  * Generate a unique transaction ID
@@ -600,6 +601,35 @@ async function createWedding(req, res) {
 
     const newWedding = new WeddingModel(weddingData);
     await newWedding.save();
+
+    // Notify all admins about the new booking
+    try {
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        await notifyAllAdmins(
+          adminIds,
+          "booking",
+          "New Wedding Booking",
+          `${userName} has submitted a new Wedding booking request.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: newWedding._id.toString(),
+              transaction_id: weddingData.transaction_id,
+              user_id: uid,
+              user_name: userName,
+              sacrament_type: "Wedding",
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for wedding booking:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(201).json({ message: "Wedding booking created successfully.", wedding: newWedding, transaction_id: weddingData.transaction_id });
 

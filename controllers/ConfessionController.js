@@ -1,6 +1,7 @@
 const ConfessionModel = require("../models/BookConfession");
 const UserModel = require("../models/User");
-const { notifyUser } = require("../utils/NotificationHelper");
+const AdminModel = require("../models/Admin");
+const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 
 /**
  * Normalize time to HH:MM format
@@ -56,6 +57,38 @@ const createConfession = async (req, res) => {
       time: normalizeTime(time),
       attendees,
     });
+
+    // Notify all admins about the new booking
+    try {
+      const user = await UserModel.findOne({ uid, is_deleted: false });
+      if (user) {
+        const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+        const adminIds = admins.map((admin) => admin.uid);
+        if (adminIds.length > 0) {
+          const userName = full_name || `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+          await notifyAllAdmins(
+            adminIds,
+            "booking",
+            "New Confession Booking",
+            `${userName} has submitted a new Confession booking request.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: booking._id.toString(),
+                transaction_id: transaction_id,
+                user_id: uid,
+                user_name: userName,
+                sacrament_type: "Confession",
+              },
+              priority: "high",
+            }
+          );
+        }
+      }
+    } catch (notificationError) {
+      console.error("Error sending admin notifications for confession booking:", notificationError);
+      // Don't fail the request if notifications fail
+    }
 
     res.status(201).json({ success: true, booking });
   } catch (err) {
