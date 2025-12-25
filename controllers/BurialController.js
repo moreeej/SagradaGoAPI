@@ -575,16 +575,16 @@ async function updateBurialStatus(req, res) {
     
     await burial.save();
 
-    // Send notifications when booking is confirmed
-    if (status === "confirmed") {
-      try {
-        const bookingDate = new Date(burial.date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        const bookingTime = burial.time || "N/A";
+    // Send notifications when booking status changes
+    try {
+      const bookingDate = new Date(burial.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = burial.time || "N/A";
 
+      if (status === "confirmed") {
         // Notify the user
         if (burial.uid) {
           await notifyUser(
@@ -599,6 +599,7 @@ async function updateBurialStatus(req, res) {
                 booking_type: "Burial",
                 date: burial.date,
                 time: burial.time,
+                status: "confirmed",
               },
               priority: "high",
             }
@@ -624,10 +625,31 @@ async function updateBurialStatus(req, res) {
             }
           );
         }
-      } catch (notificationError) {
-        console.error("Error sending notifications:", notificationError);
-        // Don't fail the request if notifications fail
+      } else if (status === "cancelled") {
+        // Notify the user when booking is rejected
+        if (burial.uid) {
+          await notifyUser(
+            burial.uid,
+            "booking_status",
+            "Burial Booking Rejected",
+            `Your burial booking (${burial.transaction_id}) has been rejected. Please contact the parish for more information.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: burial.transaction_id,
+                booking_type: "Burial",
+                date: burial.date,
+                time: burial.time,
+                status: "rejected",
+              },
+              priority: "high",
+            }
+          );
+        }
       }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
     res.status(200).json({ message: "Burial booking status updated successfully.", burial });

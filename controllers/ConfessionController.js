@@ -163,16 +163,16 @@ const updateConfessionStatus = async (req, res) => {
     
     await booking.save();
 
-    // Send notifications when booking is confirmed
-    if (status === "confirmed") {
-      try {
-        const bookingDate = new Date(booking.date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        const bookingTime = booking.time || "N/A";
+    // Send notifications when booking status changes
+    try {
+      const bookingDate = new Date(booking.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = booking.time || "N/A";
 
+      if (status === "confirmed") {
         // Notify the user
         if (booking.uid) {
           await notifyUser(
@@ -212,10 +212,31 @@ const updateConfessionStatus = async (req, res) => {
             }
           );
         }
-      } catch (notificationError) {
-        console.error("Error sending notifications:", notificationError);
-        // Don't fail the request if notifications fail
+      } else if (status === "cancelled") {
+        // Notify the user when booking is rejected
+        if (booking.uid) {
+          await notifyUser(
+            booking.uid,
+            "booking_status",
+            "Confession Booking Rejected",
+            `Your Confession booking (${booking.transaction_id}) has been rejected. Please contact the parish for more information.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: booking.transaction_id,
+                booking_type: "Confession",
+                date: booking.date,
+                time: booking.time,
+                status: "rejected",
+              },
+              priority: "high",
+            }
+          );
+        }
       }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
     res.json({ success: true, booking });

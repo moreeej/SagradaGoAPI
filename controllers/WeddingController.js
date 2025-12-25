@@ -748,16 +748,16 @@ async function updateWeddingStatus(req, res) {
     
     await wedding.save();
 
-    // Send notifications when booking is confirmed
-    if (status === "confirmed") {
-      try {
-        const bookingDate = new Date(wedding.date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        const bookingTime = wedding.time || "N/A";
+    // Send notifications when booking status changes
+    try {
+      const bookingDate = new Date(wedding.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = wedding.time || "N/A";
 
+      if (status === "confirmed") {
         // Notify the user
         if (wedding.uid) {
           await notifyUser(
@@ -772,6 +772,7 @@ async function updateWeddingStatus(req, res) {
                 booking_type: "Wedding",
                 date: wedding.date,
                 time: wedding.time,
+                status: "confirmed",
               },
               priority: "high",
             }
@@ -797,9 +798,30 @@ async function updateWeddingStatus(req, res) {
             }
           );
         }
-      } catch (notificationError) {
-        console.error("Error sending notifications:", notificationError);
+      } else if (status === "cancelled") {
+        // Notify the user when booking is rejected
+        if (wedding.uid) {
+          await notifyUser(
+            wedding.uid,
+            "booking_status",
+            "Wedding Booking Rejected",
+            `Your wedding booking (${wedding.transaction_id}) has been rejected. Please contact the parish for more information.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: wedding.transaction_id,
+                booking_type: "Wedding",
+                date: wedding.date,
+                time: wedding.time,
+                status: "rejected",
+              },
+              priority: "high",
+            }
+          );
+        }
       }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
     }
 
     res.status(200).json({ message: "Wedding booking status updated successfully.", wedding });

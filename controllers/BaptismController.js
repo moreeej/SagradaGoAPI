@@ -724,16 +724,16 @@ async function updateBaptismStatus(req, res) {
     
     await baptism.save();
 
-    // Send notifications when booking is confirmed
-    if (status === "confirmed") {
-      try {
-        const bookingDate = new Date(baptism.date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        const bookingTime = baptism.time || "N/A";
+    // Send notifications when booking status changes
+    try {
+      const bookingDate = new Date(baptism.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = baptism.time || "N/A";
 
+      if (status === "confirmed") {
         // Notify the user
         if (baptism.uid) {
           await notifyUser(
@@ -748,6 +748,7 @@ async function updateBaptismStatus(req, res) {
                 booking_type: "Baptism",
                 date: baptism.date,
                 time: baptism.time,
+                status: "confirmed",
               },
               priority: "high",
             }
@@ -773,10 +774,31 @@ async function updateBaptismStatus(req, res) {
             }
           );
         }
-      } catch (notificationError) {
-        console.error("Error sending notifications:", notificationError);
-        // Don't fail the request if notifications fail
+      } else if (status === "cancelled") {
+        // Notify the user when booking is rejected
+        if (baptism.uid) {
+          await notifyUser(
+            baptism.uid,
+            "booking_status",
+            "Baptism Booking Rejected",
+            `Your baptism booking (${baptism.transaction_id}) has been rejected. Please contact the parish for more information.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: baptism.transaction_id,
+                booking_type: "Baptism",
+                date: baptism.date,
+                time: baptism.time,
+                status: "rejected",
+              },
+              priority: "high",
+            }
+          );
+        }
       }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
     res.status(200).json({ message: "Baptism booking status updated successfully.", baptism });

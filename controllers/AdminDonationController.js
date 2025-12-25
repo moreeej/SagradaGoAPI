@@ -182,6 +182,48 @@ async function updateDonationStatus(req, res) {
       }
     }
 
+    // Send push notification to user
+    try {
+      const { notifyUser } = require("../utils/NotificationHelper");
+      
+      if (status === "confirmed") {
+        await notifyUser(
+          donation.user_id,
+          "donation_status",
+          "Donation Approved",
+          `Your donation of ₱${donation.amount?.toLocaleString() || '0'} has been approved. Thank you for your generosity!`,
+          {
+            action: "DonationsScreen",
+            metadata: {
+              donation_id: donation._id.toString(),
+              amount: donation.amount,
+              status: "approved",
+            },
+            priority: "high",
+          }
+        );
+      } else if (status === "cancelled") {
+        await notifyUser(
+          donation.user_id,
+          "donation_status",
+          "Donation Rejected",
+          `Your donation of ₱${donation.amount?.toLocaleString() || '0'} has been rejected. Please contact the parish for more information.`,
+          {
+            action: "DonationsScreen",
+            metadata: {
+              donation_id: donation._id.toString(),
+              amount: donation.amount,
+              status: "rejected",
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending donation notification:", notificationError);
+      // Don't fail the request if notifications fail
+    }
+
     res.status(200).json({
       message: `Donation ${status === "confirmed" ? "approved" : status === "cancelled" ? "rejected" : "updated"} successfully.`,
       donation,

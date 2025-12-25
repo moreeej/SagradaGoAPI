@@ -21,7 +21,8 @@ const PriestScheduleController = require("../controllers/PriestScheduleControlle
 const ChatController = require("../controllers/ChatController");
 const BookingConflictController = require("../controllers/BookingConflictController");
 const DashboardController = require("../controllers/DashboardController");
-const upload = require("../middleware/upload"); 
+const upload = require("../middleware/upload");
+const testFCMRoute = require("./testFCM"); 
 
 
 
@@ -223,6 +224,9 @@ router.post("/chat/ai/clear", ChatController.clearAIChatHistory);
 
 // Dashboard AI Stats route
 router.get("/admin/ai/stats", DashboardController.getAIStatsAnalysis);
+
+// Test FCM route
+router.use("/", testFCMRoute);
 
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {

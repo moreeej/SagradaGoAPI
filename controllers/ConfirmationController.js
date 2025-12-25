@@ -551,16 +551,16 @@ async function updateConfirmationStatus(req, res) {
     
     await confirmation.save();
 
-    // Send notifications when booking is confirmed
-    if (status === "confirmed") {
-      try {
-        const bookingDate = new Date(confirmation.date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        const bookingTime = confirmation.time || "N/A";
+    // Send notifications when booking status changes
+    try {
+      const bookingDate = new Date(confirmation.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = confirmation.time || "N/A";
 
+      if (status === "confirmed") {
         // Notify the user
         if (confirmation.uid) {
           await notifyUser(
@@ -575,6 +575,7 @@ async function updateConfirmationStatus(req, res) {
                 booking_type: "Confirmation",
                 date: confirmation.date,
                 time: confirmation.time,
+                status: "confirmed",
               },
               priority: "high",
             }
@@ -600,10 +601,31 @@ async function updateConfirmationStatus(req, res) {
             }
           );
         }
-      } catch (notificationError) {
-        console.error("Error sending notifications:", notificationError);
-        // Don't fail the request if notifications fail
+      } else if (status === "cancelled") {
+        // Notify the user when booking is rejected
+        if (confirmation.uid) {
+          await notifyUser(
+            confirmation.uid,
+            "booking_status",
+            "Confirmation Booking Rejected",
+            `Your Confirmation booking (${confirmation.transaction_id}) has been rejected. Please contact the parish for more information.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: confirmation.transaction_id,
+                booking_type: "Confirmation",
+                date: confirmation.date,
+                time: confirmation.time,
+                status: "rejected",
+              },
+              priority: "high",
+            }
+          );
+        }
       }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
     res.status(200).json({ message: "Confirmation booking status updated successfully.", confirmation });

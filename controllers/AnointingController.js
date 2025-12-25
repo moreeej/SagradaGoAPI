@@ -343,16 +343,16 @@ async function updateAnointingStatus(req, res) {
     
     await anointing.save();
 
-    // Send notifications when booking is confirmed
-    if (status === "confirmed") {
-      try {
-        const bookingDate = new Date(anointing.date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-        const bookingTime = anointing.time || "N/A";
+    // Send notifications when booking status changes
+    try {
+      const bookingDate = new Date(anointing.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = anointing.time || "N/A";
 
+      if (status === "confirmed") {
         // Notify the user
         if (anointing.uid) {
           await notifyUser(
@@ -367,6 +367,7 @@ async function updateAnointingStatus(req, res) {
                 booking_type: "Anointing",
                 date: anointing.date,
                 time: anointing.time,
+                status: "confirmed",
               },
               priority: "high",
             }
@@ -392,10 +393,31 @@ async function updateAnointingStatus(req, res) {
             }
           );
         }
-      } catch (notificationError) {
-        console.error("Error sending notifications:", notificationError);
-        // Don't fail the request if notifications fail
+      } else if (status === "cancelled") {
+        // Notify the user when booking is rejected
+        if (anointing.uid) {
+          await notifyUser(
+            anointing.uid,
+            "booking_status",
+            "Anointing of the Sick Booking Rejected",
+            `Your Anointing of the Sick booking (${anointing.transaction_id}) has been rejected. Please contact the parish for more information.`,
+            {
+              action: "BookingHistoryScreen",
+              metadata: {
+                booking_id: anointing.transaction_id,
+                booking_type: "Anointing",
+                date: anointing.date,
+                time: anointing.time,
+                status: "rejected",
+              },
+              priority: "high",
+            }
+          );
+        }
       }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
     res.status(200).json({
