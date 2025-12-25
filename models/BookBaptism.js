@@ -190,7 +190,7 @@ const BaptismSchema = new mongoose.Schema(
     },
     amount: {
       type: Number,
-      default: 0,
+      default: 2000,
     },
   },
   { timestamps: true }
