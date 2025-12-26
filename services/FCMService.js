@@ -47,9 +47,35 @@ async function getUserFCMToken(userId) {
       }
     } else {
       console.log(`FCMService: ❌ No token document found for user ${userId} in pushTokens collection`);
-      // Try to list all documents to see what's there
-      const allTokens = await adminDb.collection("pushTokens").limit(5).get();
-      console.log(`FCMService: Available token documents:`, allTokens.docs.map(d => d.id));
+      
+      // Try to find token by userDocId as fallback
+      try {
+        const tokensQuery = await adminDb.collection("pushTokens")
+          .where("userDocId", "==", userId)
+          .limit(1)
+          .get();
+        
+        if (!tokensQuery.empty) {
+          const fallbackDoc = tokensQuery.docs[0];
+          const fallbackData = fallbackDoc.data();
+          const fallbackToken = fallbackData.fcmToken || fallbackData.token;
+          if (fallbackToken) {
+            console.log(`FCMService: ✅ Token found via userDocId fallback for user ${userId}`);
+            return fallbackToken;
+          }
+        }
+      } catch (fallbackError) {
+        console.log(`FCMService: Fallback lookup failed:`, fallbackError.message);
+      }
+      
+      // Debug: List available tokens to help diagnose
+      try {
+        const allTokens = await adminDb.collection("pushTokens").limit(10).get();
+        const availableIds = allTokens.docs.map(d => ({ id: d.id, userDocId: d.data().userDocId }));
+        console.log(`FCMService: Available token documents (first 10):`, JSON.stringify(availableIds, null, 2));
+      } catch (debugError) {
+        console.log(`FCMService: Could not list available tokens for debugging`);
+      }
     }
 
     console.log(`FCMService: No FCM token found for user ${userId}`);
