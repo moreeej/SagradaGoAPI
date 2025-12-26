@@ -735,9 +735,24 @@ async function updateBaptismStatus(req, res) {
 
       if (status === "confirmed") {
         // Notify the user
-        if (baptism.uid) {
+        let userIdToNotify = baptism.uid;
+        
+        // If booking was created by admin, find user by email
+        if (baptism.uid === 'admin' && baptism.email) {
+          console.log(`Finding user by email: ${baptism.email}`);
+          const user = await UserModel.findOne({ email: baptism.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${baptism.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending notification to user: ${userIdToNotify}`);
           await notifyUser(
-            baptism.uid,
+            userIdToNotify,
             "booking_status",
             "Baptism Booking Confirmed",
             `Your baptism booking (${baptism.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${baptism.priest_name ? `, Priest: ${baptism.priest_name}` : ""}.`,
@@ -753,6 +768,8 @@ async function updateBaptismStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
@@ -776,9 +793,24 @@ async function updateBaptismStatus(req, res) {
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
-        if (baptism.uid) {
+        let userIdToNotify = baptism.uid;
+        
+        // If booking was created by admin, find user by email
+        if (baptism.uid === 'admin' && baptism.email) {
+          console.log(`Finding user by email: ${baptism.email}`);
+          const user = await UserModel.findOne({ email: baptism.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${baptism.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
           await notifyUser(
-            baptism.uid,
+            userIdToNotify,
             "booking_status",
             "Baptism Booking Rejected",
             `Your baptism booking (${baptism.transaction_id}) has been rejected. Please contact the parish for more information.`,
@@ -794,6 +826,8 @@ async function updateBaptismStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
       }
     } catch (notificationError) {

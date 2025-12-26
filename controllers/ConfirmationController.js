@@ -562,9 +562,24 @@ async function updateConfirmationStatus(req, res) {
 
       if (status === "confirmed") {
         // Notify the user
-        if (confirmation.uid) {
+        let userIdToNotify = confirmation.uid;
+        
+        // If booking was created by admin, find user by email
+        if (confirmation.uid === 'admin' && confirmation.email) {
+          console.log(`Finding user by email: ${confirmation.email}`);
+          const user = await UserModel.findOne({ email: confirmation.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${confirmation.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending notification to user: ${userIdToNotify}`);
           await notifyUser(
-            confirmation.uid,
+            userIdToNotify,
             "booking_status",
             "Confirmation Booking Confirmed",
             `Your Confirmation booking (${confirmation.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${confirmation.priest_name ? `, Priest: ${confirmation.priest_name}` : ""}.`,
@@ -580,6 +595,8 @@ async function updateConfirmationStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
@@ -603,9 +620,24 @@ async function updateConfirmationStatus(req, res) {
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
-        if (confirmation.uid) {
+        let userIdToNotify = confirmation.uid;
+        
+        // If booking was created by admin, find user by email
+        if (confirmation.uid === 'admin' && confirmation.email) {
+          console.log(`Finding user by email: ${confirmation.email}`);
+          const user = await UserModel.findOne({ email: confirmation.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${confirmation.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
           await notifyUser(
-            confirmation.uid,
+            userIdToNotify,
             "booking_status",
             "Confirmation Booking Rejected",
             `Your Confirmation booking (${confirmation.transaction_id}) has been rejected. Please contact the parish for more information.`,
@@ -621,6 +653,8 @@ async function updateConfirmationStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
       }
     } catch (notificationError) {

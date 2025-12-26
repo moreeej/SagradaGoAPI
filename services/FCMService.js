@@ -123,51 +123,87 @@ async function getUserFCMTokens(userIds) {
  * @returns {Boolean} Success status
  */
 async function sendToUser(userId, title, body, data = {}) {
+  console.log(`FCMService: ========== sendToUser CALLED ==========`);
+  console.log(`FCMService: userId: ${userId}`);
+  console.log(`FCMService: title: ${title}`);
+  console.log(`FCMService: body: ${body}`);
+  console.log(`FCMService: data:`, JSON.stringify(data, null, 2));
+  
   try {
     if (!admin || admin.apps.length === 0) {
-      console.log(`FCMService: Firebase Admin not initialized - cannot send notification`);
+      console.error(`FCMService: ❌ Firebase Admin not initialized - cannot send notification`);
+      return false;
+    }
+    console.log(`FCMService: ✅ Firebase Admin is initialized`);
+
+    // Skip notification if userId is 'admin' (admin-created bookings)
+    if (userId === 'admin' || !userId) {
+      console.log(`FCMService: ⚠️ Skipping notification for admin or invalid userId: ${userId}`);
       return false;
     }
 
+    console.log(`FCMService: 🔍 Getting FCM token for user: ${userId}`);
     const token = await getUserFCMToken(userId);
     
     if (!token) {
-      console.log(`FCMService: No token found for user ${userId}, skipping notification`);
+      console.error(`FCMService: ❌ No token found for user ${userId}, skipping notification`);
       return false;
     }
+    console.log(`FCMService: ✅ Token retrieved: ${token.substring(0, 20)}...`);
 
+    // Convert all data values to strings (FCM requirement) - EXACT format from working project
+    const dataPayload = {
+      ...Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, String(value)])
+      ),
+      timestamp: new Date().toISOString(),
+    };
+
+    // EXACT message format from working project
     const message = {
       token: token,
       notification: {
         title: title,
         body: body,
       },
-      data: {
-        ...data,
-        type: data.type || "general",
-      },
+      data: dataPayload,
       android: {
-        priority: "high",
+        priority: 'high',
         notification: {
-          sound: "default",
-          channelId: "default",
+          sound: 'default',
+          channelId: 'default',
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: "default",
+            sound: 'default',
             badge: 1,
           },
         },
       },
     };
 
+    console.log(`FCMService: Attempting to send FCM message to token: ${token.substring(0, 20)}...`);
+    console.log(`FCMService: Title: ${title}, Body: ${body}`);
+    console.log(`FCMService: 📦 FULL MESSAGE PAYLOAD:`, JSON.stringify(message, null, 2));
+    
     const response = await admin.messaging().send(message);
-    console.log(`FCMService: Notification sent to user ${userId}:`, response);
+    console.log(`FCMService: ✅ Successfully sent message: ${response}`);
+    console.log(`FCMService: ✅ Message ID from FCM: ${response}`);
     return true;
   } catch (error) {
-    console.error(`FCMService: Error sending notification to user ${userId}:`, error);
+    console.error(`FCMService: ❌ Error sending notification to user ${userId}:`, error);
+    console.error(`FCMService: Error code:`, error.code);
+    console.error(`FCMService: Error message:`, error.message);
+    console.error(`FCMService: Error stack:`, error.stack);
+    
+    // Check for specific FCM errors
+    if (error.code === 'messaging/invalid-registration-token' || 
+        error.code === 'messaging/registration-token-not-registered') {
+      console.error(`FCMService: ⚠️ Token is invalid or not registered - user may need to re-register`);
+    }
+    
     return false;
   }
 }
@@ -195,27 +231,32 @@ async function sendToUsers(userIds, title, body, data = {}) {
       return { success: 0, failed: userIds.length };
     }
 
+    // Convert all data values to strings (FCM requirement) - EXACT format from working project
+    const dataPayload = {
+      ...Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, String(value)])
+      ),
+      timestamp: new Date().toISOString(),
+    };
+
     const message = {
       tokens: tokens,
       notification: {
         title: title,
         body: body,
       },
-      data: {
-        ...data,
-        type: data.type || "general",
-      },
+      data: dataPayload,
       android: {
-        priority: "high",
+        priority: 'high',
         notification: {
-          sound: "default",
-          channelId: "default",
+          sound: 'default',
+          channelId: 'default',
         },
       },
       apns: {
         payload: {
           aps: {
-            sound: "default",
+            sound: 'default',
             badge: 1,
           },
         },
@@ -223,7 +264,7 @@ async function sendToUsers(userIds, title, body, data = {}) {
     };
 
     const response = await admin.messaging().sendMulticast(message);
-    console.log(`FCMService: Sent ${response.successCount} notifications, ${response.failureCount} failed`);
+    console.log(`FCMService: ✅ Sent ${response.successCount} notifications, ${response.failureCount} failed`);
     
     return {
       success: response.successCount,

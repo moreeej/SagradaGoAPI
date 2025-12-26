@@ -586,9 +586,24 @@ async function updateBurialStatus(req, res) {
 
       if (status === "confirmed") {
         // Notify the user
-        if (burial.uid) {
+        let userIdToNotify = burial.uid;
+        
+        // If booking was created by admin, find user by email
+        if (burial.uid === 'admin' && burial.email) {
+          console.log(`Finding user by email: ${burial.email}`);
+          const user = await UserModel.findOne({ email: burial.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${burial.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending notification to user: ${userIdToNotify}`);
           await notifyUser(
-            burial.uid,
+            userIdToNotify,
             "booking_status",
             "Burial Booking Confirmed",
             `Your burial booking (${burial.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${burial.priest_name ? `, Priest: ${burial.priest_name}` : ""}.`,
@@ -604,6 +619,8 @@ async function updateBurialStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
@@ -627,9 +644,24 @@ async function updateBurialStatus(req, res) {
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
-        if (burial.uid) {
+        let userIdToNotify = burial.uid;
+        
+        // If booking was created by admin, find user by email
+        if (burial.uid === 'admin' && burial.email) {
+          console.log(`Finding user by email: ${burial.email}`);
+          const user = await UserModel.findOne({ email: burial.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${burial.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
           await notifyUser(
-            burial.uid,
+            userIdToNotify,
             "booking_status",
             "Burial Booking Rejected",
             `Your burial booking (${burial.transaction_id}) has been rejected. Please contact the parish for more information.`,
@@ -645,6 +677,8 @@ async function updateBurialStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
       }
     } catch (notificationError) {

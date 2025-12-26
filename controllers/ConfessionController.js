@@ -164,6 +164,9 @@ const updateConfessionStatus = async (req, res) => {
     await booking.save();
 
     // Send notifications when booking status changes
+    console.log(`[CONFESSION] ========== SENDING NOTIFICATIONS ==========`);
+    console.log(`[CONFESSION] Status: ${status}, Transaction ID: ${booking.transaction_id}`);
+    
     try {
       const bookingDate = new Date(booking.date).toLocaleDateString("en-US", {
         year: "numeric",
@@ -171,26 +174,54 @@ const updateConfessionStatus = async (req, res) => {
         day: "numeric",
       });
       const bookingTime = booking.time || "N/A";
+      console.log(`[CONFESSION] Booking date: ${bookingDate}, time: ${bookingTime}`);
 
       if (status === "confirmed") {
         // Notify the user
-        if (booking.uid) {
-          await notifyUser(
-            booking.uid,
-            "booking_status",
-            "Confession Booking Confirmed",
-            `Your Confession booking (${booking.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${booking.priest_name ? `, Priest: ${booking.priest_name}` : ""}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: booking.transaction_id,
-                booking_type: "Confession",
-                date: booking.date,
-                time: booking.time,
-              },
-              priority: "high",
-            }
-          );
+        let userIdToNotify = booking.uid;
+        console.log(`[CONFESSION] Initial uid: ${userIdToNotify}, email: ${booking.email}`);
+        
+        // If booking was created by admin, find user by email
+        if (booking.uid === 'admin' && booking.email) {
+          console.log(`[CONFESSION] Finding user by email: ${booking.email}`);
+          const user = await UserModel.findOne({ email: booking.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`[CONFESSION] ✅ Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`[CONFESSION] ❌ No user found with email: ${booking.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`[CONFESSION] ✅ Valid userId, calling notifyUser: ${userIdToNotify}`);
+          try {
+            const notifyPromise = notifyUser(
+              userIdToNotify,
+              "booking_status",
+              "Confession Booking Confirmed",
+              `Your Confession booking (${booking.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${booking.priest_name ? `, Priest: ${booking.priest_name}` : ""}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: booking.transaction_id,
+                  booking_type: "Confession",
+                  date: booking.date,
+                  time: booking.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[CONFESSION] notifyUser promise created, awaiting...`);
+            await notifyPromise;
+            console.log(`[CONFESSION] ✅ notifyUser call completed`);
+          } catch (notifyError) {
+            console.error(`[CONFESSION] ❌ Error in notifyUser:`, notifyError);
+            console.error(`[CONFESSION] Error message:`, notifyError.message);
+            console.error(`[CONFESSION] Error stack:`, notifyError.stack);
+          }
+        } else {
+          console.error(`[CONFESSION] ❌ Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
@@ -214,9 +245,24 @@ const updateConfessionStatus = async (req, res) => {
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
-        if (booking.uid) {
+        let userIdToNotify = booking.uid;
+        
+        // If booking was created by admin, find user by email
+        if (booking.uid === 'admin' && booking.email) {
+          console.log(`Finding user by email: ${booking.email}`);
+          const user = await UserModel.findOne({ email: booking.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${booking.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
           await notifyUser(
-            booking.uid,
+            userIdToNotify,
             "booking_status",
             "Confession Booking Rejected",
             `Your Confession booking (${booking.transaction_id}) has been rejected. Please contact the parish for more information.`,
@@ -232,6 +278,8 @@ const updateConfessionStatus = async (req, res) => {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
       }
     } catch (notificationError) {

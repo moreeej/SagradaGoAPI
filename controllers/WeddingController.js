@@ -749,6 +749,12 @@ async function updateWeddingStatus(req, res) {
     await wedding.save();
 
     // Send notifications when booking status changes
+    console.log(`=== DEBUG: Wedding Status Update ===`);
+    console.log(`Transaction ID: ${wedding.transaction_id}`);
+    console.log(`Status: ${status}`);
+    console.log(`User UID: ${wedding.uid}`);
+    console.log(`Will send notification: ${status === "confirmed" || status === "cancelled"}`);
+    
     try {
       const bookingDate = new Date(wedding.date).toLocaleDateString("en-US", {
         year: "numeric",
@@ -759,9 +765,24 @@ async function updateWeddingStatus(req, res) {
 
       if (status === "confirmed") {
         // Notify the user
-        if (wedding.uid) {
+        let userIdToNotify = wedding.uid;
+        
+        // If booking was created by admin, find user by email
+        if (wedding.uid === 'admin' && wedding.email) {
+          console.log(`Finding user by email: ${wedding.email}`);
+          const user = await UserModel.findOne({ email: wedding.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${wedding.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending notification to user: ${userIdToNotify}`);
           await notifyUser(
-            wedding.uid,
+            userIdToNotify,
             "booking_status",
             "Wedding Booking Confirmed",
             `Your wedding booking (${wedding.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${wedding.priest_name ? `, Priest: ${wedding.priest_name}` : ""}.`,
@@ -777,6 +798,8 @@ async function updateWeddingStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
@@ -800,9 +823,24 @@ async function updateWeddingStatus(req, res) {
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
-        if (wedding.uid) {
+        let userIdToNotify = wedding.uid;
+        
+        // If booking was created by admin, find user by email
+        if (wedding.uid === 'admin' && wedding.email) {
+          console.log(`Finding user by email: ${wedding.email}`);
+          const user = await UserModel.findOne({ email: wedding.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${wedding.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
           await notifyUser(
-            wedding.uid,
+            userIdToNotify,
             "booking_status",
             "Wedding Booking Rejected",
             `Your wedding booking (${wedding.transaction_id}) has been rejected. Please contact the parish for more information.`,
@@ -818,6 +856,8 @@ async function updateWeddingStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
       }
     } catch (notificationError) {

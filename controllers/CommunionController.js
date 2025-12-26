@@ -564,9 +564,24 @@ async function updateCommunionStatus(req, res) {
 
       if (status === "confirmed") {
         // Notify the user
-        if (communion.uid) {
+        let userIdToNotify = communion.uid;
+        
+        // If booking was created by admin, find user by email
+        if (communion.uid === 'admin' && communion.email) {
+          console.log(`Finding user by email: ${communion.email}`);
+          const user = await UserModel.findOne({ email: communion.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${communion.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending notification to user: ${userIdToNotify}`);
           await notifyUser(
-            communion.uid,
+            userIdToNotify,
             "booking_status",
             "First Communion Booking Confirmed",
             `Your First Communion booking (${communion.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${communion.priest_name ? `, Priest: ${communion.priest_name}` : ""}.`,
@@ -582,6 +597,8 @@ async function updateCommunionStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
@@ -605,9 +622,24 @@ async function updateCommunionStatus(req, res) {
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
-        if (communion.uid) {
+        let userIdToNotify = communion.uid;
+        
+        // If booking was created by admin, find user by email
+        if (communion.uid === 'admin' && communion.email) {
+          console.log(`Finding user by email: ${communion.email}`);
+          const user = await UserModel.findOne({ email: communion.email, is_deleted: false });
+          if (user && user.uid) {
+            userIdToNotify = user.uid;
+            console.log(`Found user with uid: ${userIdToNotify}`);
+          } else {
+            console.log(`No user found with email: ${communion.email}`);
+          }
+        }
+        
+        if (userIdToNotify && userIdToNotify !== 'admin') {
+          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
           await notifyUser(
-            communion.uid,
+            userIdToNotify,
             "booking_status",
             "First Communion Booking Rejected",
             `Your First Communion booking (${communion.transaction_id}) has been rejected. Please contact the parish for more information.`,
@@ -623,6 +655,8 @@ async function updateCommunionStatus(req, res) {
               priority: "high",
             }
           );
+        } else {
+          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
       }
     } catch (notificationError) {
