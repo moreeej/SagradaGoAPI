@@ -601,22 +601,32 @@ async function updateConfirmationStatus(req, res) {
 
         // Notify the priest
         if (priest_id) {
-          await notifyUser(
-            priest_id,
-            "booking_status",
-            "New Confirmation Assignment",
-            `You have been assigned to a Confirmation booking (${confirmation.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: confirmation.transaction_id,
-                booking_type: "Confirmation",
-                date: confirmation.date,
-                time: confirmation.time,
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[CONFIRMATION] 📿 Notifying priest: ${priest_id}`);
+          try {
+            await notifyUser(
+              priest_id,
+              "booking_status",
+              "New Confirmation Assignment",
+              `You have been assigned to a Confirmation booking (${confirmation.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: confirmation.transaction_id,
+                  booking_type: "Confirmation",
+                  date: confirmation.date,
+                  time: confirmation.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[CONFIRMATION] ✅ Priest notification sent successfully`);
+          } catch (priestNotifyError) {
+            console.error(`[CONFIRMATION] ❌ Error notifying priest:`, priestNotifyError);
+            console.error(`[CONFIRMATION] Error message:`, priestNotifyError.message);
+            console.error(`[CONFIRMATION] Error stack:`, priestNotifyError.stack);
+          }
+        } else {
+          console.log(`[CONFIRMATION] ⚠️ No priest_id provided, skipping priest notification`);
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected

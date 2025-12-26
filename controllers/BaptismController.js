@@ -774,22 +774,32 @@ async function updateBaptismStatus(req, res) {
 
         // Notify the priest
         if (priest_id) {
-          await notifyUser(
-            priest_id,
-            "booking_status",
-            "New Baptism Assignment",
-            `You have been assigned to a baptism booking (${baptism.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: baptism.transaction_id,
-                booking_type: "Baptism",
-                date: baptism.date,
-                time: baptism.time,
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[BAPTISM] 📿 Notifying priest: ${priest_id}`);
+          try {
+            await notifyUser(
+              priest_id,
+              "booking_status",
+              "New Baptism Assignment",
+              `You have been assigned to a baptism booking (${baptism.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: baptism.transaction_id,
+                  booking_type: "Baptism",
+                  date: baptism.date,
+                  time: baptism.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[BAPTISM] ✅ Priest notification sent successfully`);
+          } catch (priestNotifyError) {
+            console.error(`[BAPTISM] ❌ Error notifying priest:`, priestNotifyError);
+            console.error(`[BAPTISM] Error message:`, priestNotifyError.message);
+            console.error(`[BAPTISM] Error stack:`, priestNotifyError.stack);
+          }
+        } else {
+          console.log(`[BAPTISM] ⚠️ No priest_id provided, skipping priest notification`);
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected

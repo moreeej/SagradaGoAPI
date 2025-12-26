@@ -804,22 +804,32 @@ async function updateWeddingStatus(req, res) {
 
         // Notify the priest
         if (priest_id) {
-          await notifyUser(
-            priest_id,
-            "booking_status",
-            "New Wedding Assignment",
-            `You have been assigned to a wedding booking (${wedding.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: wedding.transaction_id,
-                booking_type: "Wedding",
-                date: wedding.date,
-                time: wedding.time,
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[WEDDING] 📿 Notifying priest: ${priest_id}`);
+          try {
+            await notifyUser(
+              priest_id,
+              "booking_status",
+              "New Wedding Assignment",
+              `You have been assigned to a wedding booking (${wedding.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: wedding.transaction_id,
+                  booking_type: "Wedding",
+                  date: wedding.date,
+                  time: wedding.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[WEDDING] ✅ Priest notification sent successfully`);
+          } catch (priestNotifyError) {
+            console.error(`[WEDDING] ❌ Error notifying priest:`, priestNotifyError);
+            console.error(`[WEDDING] Error message:`, priestNotifyError.message);
+            console.error(`[WEDDING] Error stack:`, priestNotifyError.stack);
+          }
+        } else {
+          console.log(`[WEDDING] ⚠️ No priest_id provided, skipping priest notification`);
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected

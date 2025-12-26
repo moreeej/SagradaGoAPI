@@ -601,46 +601,63 @@ async function updateBurialStatus(req, res) {
         }
         
         if (userIdToNotify && userIdToNotify !== 'admin') {
-          console.log(`Sending notification to user: ${userIdToNotify}`);
-          await notifyUser(
-            userIdToNotify,
-            "booking_status",
-            "Burial Booking Confirmed",
-            `Your burial booking (${burial.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${burial.priest_name ? `, Priest: ${burial.priest_name}` : ""}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: burial.transaction_id,
-                booking_type: "Burial",
-                date: burial.date,
-                time: burial.time,
-                status: "confirmed",
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[BURIAL] Sending notification to user: ${userIdToNotify}`);
+          try {
+            await notifyUser(
+              userIdToNotify,
+              "booking_status",
+              "Burial Booking Confirmed",
+              `Your burial booking (${burial.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${burial.priest_name ? `, Priest: ${burial.priest_name}` : ""}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: burial.transaction_id,
+                  booking_type: "Burial",
+                  date: burial.date,
+                  time: burial.time,
+                  status: "confirmed",
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[BURIAL] ✅ notifyUser call completed for user: ${userIdToNotify}`);
+          } catch (notifyError) {
+            console.error(`[BURIAL] ❌ Error calling notifyUser:`, notifyError);
+            console.error(`[BURIAL] Error message:`, notifyError.message);
+            console.error(`[BURIAL] Error stack:`, notifyError.stack);
+          }
         } else {
-          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
+          console.log(`[BURIAL] Skipping notification - invalid userId: ${userIdToNotify}`);
         }
 
         // Notify the priest
         if (priest_id) {
-          await notifyUser(
-            priest_id,
-            "booking_status",
-            "New Burial Assignment",
-            `You have been assigned to a burial booking (${burial.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: burial.transaction_id,
-                booking_type: "Burial",
-                date: burial.date,
-                time: burial.time,
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[BURIAL] 📿 Notifying priest: ${priest_id}`);
+          try {
+            await notifyUser(
+              priest_id,
+              "booking_status",
+              "New Burial Assignment",
+              `You have been assigned to a burial booking (${burial.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: burial.transaction_id,
+                  booking_type: "Burial",
+                  date: burial.date,
+                  time: burial.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[BURIAL] ✅ Priest notification sent successfully`);
+          } catch (priestNotifyError) {
+            console.error(`[BURIAL] ❌ Error notifying priest:`, priestNotifyError);
+            console.error(`[BURIAL] Error message:`, priestNotifyError.message);
+            console.error(`[BURIAL] Error stack:`, priestNotifyError.stack);
+          }
+        } else {
+          console.log(`[BURIAL] ⚠️ No priest_id provided, skipping priest notification`);
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected

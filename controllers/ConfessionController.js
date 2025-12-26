@@ -226,22 +226,34 @@ const updateConfessionStatus = async (req, res) => {
 
         // Notify the priest
         if (priest_id) {
-          await notifyUser(
-            priest_id,
-            "booking_status",
-            "New Confession Assignment",
-            `You have been assigned to a Confession booking (${booking.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: booking.transaction_id,
-                booking_type: "Confession",
-                date: booking.date,
-                time: booking.time,
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[CONFESSION] 📿 Notifying priest: ${priest_id}`);
+          try {
+            const priestNotifyPromise = notifyUser(
+              priest_id,
+              "booking_status",
+              "New Confession Assignment",
+              `You have been assigned to a Confession booking (${booking.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: booking.transaction_id,
+                  booking_type: "Confession",
+                  date: booking.date,
+                  time: booking.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[CONFESSION] 📿 Priest notification promise created, awaiting...`);
+            await priestNotifyPromise;
+            console.log(`[CONFESSION] ✅ Priest notification sent successfully`);
+          } catch (priestNotifyError) {
+            console.error(`[CONFESSION] ❌ Error notifying priest:`, priestNotifyError);
+            console.error(`[CONFESSION] Error message:`, priestNotifyError.message);
+            console.error(`[CONFESSION] Error stack:`, priestNotifyError.stack);
+          }
+        } else {
+          console.log(`[CONFESSION] ⚠️ No priest_id provided, skipping priest notification`);
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected

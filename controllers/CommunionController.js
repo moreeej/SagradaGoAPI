@@ -603,22 +603,32 @@ async function updateCommunionStatus(req, res) {
 
         // Notify the priest
         if (priest_id) {
-          await notifyUser(
-            priest_id,
-            "booking_status",
-            "New First Communion Assignment",
-            `You have been assigned to a First Communion booking (${communion.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
-            {
-              action: "BookingHistoryScreen",
-              metadata: {
-                booking_id: communion.transaction_id,
-                booking_type: "Communion",
-                date: communion.date,
-                time: communion.time,
-              },
-              priority: "high",
-            }
-          );
+          console.log(`[COMMUNION] 📿 Notifying priest: ${priest_id}`);
+          try {
+            await notifyUser(
+              priest_id,
+              "booking_status",
+              "New First Communion Assignment",
+              `You have been assigned to a First Communion booking (${communion.transaction_id}). Date: ${bookingDate}, Time: ${bookingTime}.`,
+              {
+                action: "BookingHistoryScreen",
+                metadata: {
+                  booking_id: communion.transaction_id,
+                  booking_type: "Communion",
+                  date: communion.date,
+                  time: communion.time,
+                },
+                priority: "high",
+              }
+            );
+            console.log(`[COMMUNION] ✅ Priest notification sent successfully`);
+          } catch (priestNotifyError) {
+            console.error(`[COMMUNION] ❌ Error notifying priest:`, priestNotifyError);
+            console.error(`[COMMUNION] Error message:`, priestNotifyError.message);
+            console.error(`[COMMUNION] Error stack:`, priestNotifyError.stack);
+          }
+        } else {
+          console.log(`[COMMUNION] ⚠️ No priest_id provided, skipping priest notification`);
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
