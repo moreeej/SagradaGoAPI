@@ -884,6 +884,81 @@ async function getAllBaptisms(req, res) {
   }
 }
 
+async function AddBaptismalWeb(req, res) {
+  try {
+    const {
+      uid,
+      email,
+      transaction_id,
+      date,
+      time,
+      attendees,
+      contact_number,
+      groom_last_name,
+      groom_first_name,
+      groom_middle_name,
+      groom_pic,
+      bride_last_name,
+      bride_first_name,
+      bride_middle_name,
+      bride_pic,
+      marriage_docu,
+      groom_cenomar,
+      bride_cenomar,
+      groom_baptismal_cert,
+      bride_baptismal_cert,
+      groom_confirmation_cert,
+      bride_confirmation_cert,
+      groom_permission,
+      bride_permission,
+    } = req.body;
+
+    // CREATE NEW DOCUMENT
+    const newWedding = new WeddingModel({
+      uid,
+      email,
+      transaction_id,
+      date,
+      time,
+      attendees,
+      contact_number,
+      groom_last_name,
+      groom_first_name,
+      groom_middle_name,
+      groom_pic,
+      bride_last_name,
+      bride_first_name,
+      bride_middle_name,
+      bride_pic,
+      marriage_docu,
+      groom_cenomar,
+      bride_cenomar,
+      groom_baptismal_cert,
+      bride_baptismal_cert,
+      groom_confirmation_cert,
+      bride_confirmation_cert,
+      groom_permission,
+      bride_permission,
+    });
+
+    // SAVE TO DB
+    const savedWedding = await newWedding.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Wedding booking created successfully",
+      data: savedWedding,
+    });
+  } catch (error) {
+    console.error("ADD WEDDING ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create wedding booking",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   BaptismModel,
   createBaptism,
@@ -891,4 +966,5 @@ module.exports = {
   getBaptism,
   updateBaptismStatus,
   getAllBaptisms,
+  AddBaptismalWeb,
 };
