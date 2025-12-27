@@ -304,13 +304,13 @@ async function getAIResponse(userMessage, userId) {
 
     // Get the model - try different model names that are actually available
     if (!modelName) {
-      // Try these models in order of preference
+      // Try these models in order of preference (using valid models)
       const availableModels = [
-        "gemini-1.5-flash-001",
-        "gemini-1.5-pro-001", 
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-pro"
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash-lite", 
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.5-pro"
       ];
       modelName = availableModels[0]; // Start with the most likely to work
     }
@@ -377,13 +377,13 @@ async function getAIResponse(userMessage, userId) {
         errorMessage.toLowerCase().includes("listmodels")) {
       console.log("Model not found - trying alternative models");
       
-      // Try different model names that might work
+      // Try different model names that might work (using valid models)
       const fallbackModels = [
-        "gemini-1.5-flash-001",
-        "gemini-1.5-pro-001",
-        "gemini-1.5-flash",
-        "gemini-1.5-pro",
-        "gemini-pro"
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.5-pro"
       ];
       
       // Remove the model that already failed (if we know which one)
@@ -590,14 +590,35 @@ Provide actionable insights about:
 
 Keep the response professional, concise, and focused on actionable insights. Highlight the most significant trends and patterns.`;
 
-    // Try REST API first
+    // Try REST API with smart model selection and quota handling
     try {
       const availableModels = await getAvailableModels();
-      const modelsToTry = availableModels.length > 0 ? availableModels : ["gemini-pro", "models/gemini-pro"];
+      
+      // Filter out non-existent models and prioritize working models
+      const validModels = availableModels.filter(m => 
+        !m.includes("gemini-1.5-flash-001") && 
+        !m.includes("gemini-1.5")
+      );
+      
+      // Prioritize models: prefer flash-lite models (less rate limited), then flash, then pro
+      const prioritizedModels = [
+        ...validModels.filter(m => m.includes("flash-lite")),
+        ...validModels.filter(m => m.includes("flash") && !m.includes("flash-lite")),
+        ...validModels.filter(m => m.includes("pro")),
+        ...validModels.filter(m => !m.includes("flash") && !m.includes("pro"))
+      ];
+      
+      // Try up to 3 models - if one has quota exceeded, try the next one
+      const modelsToTry = prioritizedModels.length > 0 
+        ? prioritizedModels.slice(0, 3) // Try up to 3 models
+        : ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.5-flash"];
+      
+      // Try v1 first (more stable)
+      const apiVersions = ["v1"];
+      
+      let lastQuotaError = null;
       
       for (const modelName of modelsToTry) {
-        const apiVersions = ["v1", "v1beta"];
-        
         for (const version of apiVersions) {
           try {
             const url = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${geminiApiKey}`;
@@ -611,7 +632,8 @@ Keep the response professional, concise, and focused on actionable insights. Hig
               {
                 headers: {
                   "Content-Type": "application/json"
-                }
+                },
+                timeout: 30000 // 30 second timeout
               }
             );
 
@@ -621,35 +643,70 @@ Keep the response professional, concise, and focused on actionable insights. Hig
               return analysis;
             }
           } catch (error) {
-            console.log(`REST API ${version}/${modelName} failed:`, error.response?.status || error.message);
-            continue;
+            const status = error.response?.status;
+            const errorDetails = error.response?.data?.error?.details || [];
+            const errorMessage = error.message || '';
+            
+            // Check if it's a quota exceeded error
+            const quotaExceeded = errorDetails.some(detail => 
+              detail['@type']?.includes('QuotaFailure') || 
+              detail['@type']?.includes('Quota')
+            ) || errorMessage.includes('quota') || 
+              errorMessage.includes('Quota exceeded') ||
+              errorMessage.includes('exceeded your current quota');
+            
+            if (quotaExceeded) {
+              console.log(`Quota exceeded for ${modelName}. Trying next model...`);
+              lastQuotaError = modelName;
+              // Break out of version loop and try next model
+              break;
+            }
+            
+            // If rate limited (429) but not quota, it's temporary - wait and continue
+            if (status === 429 && !quotaExceeded) {
+              console.log(`REST API ${version}/${modelName} temporarily rate limited (429), trying next model...`);
+              break; // Try next model
+            } else if (status !== 429) {
+              console.log(`REST API ${version}/${modelName} failed:`, status || error.message);
+              // Continue to next version or model
+            }
           }
         }
+        
+        // If we got a successful response, we would have returned already
+        // If we're here, this model failed - continue to next model
+        // Add small delay between models to be safe
+        if (modelName !== modelsToTry[modelsToTry.length - 1]) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
       }
+      
+      // If we tried all models and all had quota exceeded
+      if (lastQuotaError) {
+        console.log(`All tried models have quota exceeded. Last attempted: ${lastQuotaError}`);
+        return `AI analysis quota exceeded for all available models today (20 requests/day limit per model on free tier). The analysis will be available again tomorrow. Dashboard statistics and charts are still available for insights.`;
+      }
+      
     } catch (restError) {
-      console.log("REST API failed, trying SDK:", restError.message);
+      console.log("REST API failed:", restError.message);
+      // Don't throw, fall through to return graceful message
     }
 
-    // Fallback to SDK
-    if (!genAI) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-      if (!apiKey) {
-        throw new Error("API key not configured");
-      }
-      genAI = new GoogleGenerativeAI(apiKey);
-    }
-
-    const modelName = process.env.GEMINI_MODEL || "gemini-1.5-flash-001";
-    const model = genAI.getGenerativeModel({ model: modelName });
-    
-    const result = await model.generateContent(statsPrompt);
-    const response = await result.response;
-    const analysis = response.text();
-
-    return analysis;
+    // If we get here, all models failed for non-quota reasons
+    return `AI analysis is currently unavailable. Please try again in a few moments. Dashboard statistics and charts are still available for insights.`;
   } catch (error) {
     console.error("Error analyzing dashboard stats:", error);
-    return "Unable to generate AI analysis at this time. Please try again later.";
+    
+    // Check if it's a quota error
+    const isQuotaError = error.message?.includes('quota') || 
+                        error.message?.includes('Quota') ||
+                        error.status === 429;
+    
+    if (isQuotaError) {
+      return `AI analysis quota exceeded for today (20 requests/day limit on free tier). Please try again tomorrow or upgrade your API plan. Dashboard statistics are still available.`;
+    }
+    
+    return "Unable to generate AI analysis at this time. Please try again later. Dashboard statistics and charts are still available for insights.";
   }
 }
 
