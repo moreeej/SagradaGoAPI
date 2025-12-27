@@ -107,7 +107,7 @@ router.put("/updateBaptismStatus", BaptismController.updateBaptismStatus);
 
 // Baptism routes (admin)
 router.get("/admin/getAllBaptisms", BaptismController.getAllBaptisms);
-router.post("/admin/addBaptismalWeb", BaptismController.AddBaptismalWeb); 
+router.post("/addBaptismalWeb", BaptismController.AddBaptismalWeb); 
 
 // Burial routes (user) - with file upload support
 router.post("/createBurial", upload.fields([

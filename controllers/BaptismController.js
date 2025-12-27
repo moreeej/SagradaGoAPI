@@ -16,14 +16,14 @@
 //  */
 // async function ensureBucketExists(bucketName) {
 //   const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-  
+
 //   if (listError) {
 //     console.error("Error listing buckets:", listError);
 //     return false;
 //   }
-  
+
 //   const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-  
+
 //   if (!bucketExists) {
 //     console.log(`Bucket "${bucketName}" does not exist. Attempting to create...`);
 //     const { data: createData, error: createError } = await supabase.storage.createBucket(bucketName, {
@@ -31,15 +31,15 @@
 //       allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
 //       fileSizeLimit: 10485760 // 10MB limit
 //     });
-    
+
 //     if (createError) {
 //       console.error(`Error creating bucket "${bucketName}":`, createError);
 //       return false;
 //     }
-    
+
 //     console.log(`Bucket "${bucketName}" created successfully`);
 //   }
-  
+
 //   return true;
 // }
 
@@ -103,8 +103,8 @@
 //       // Ensure bucket exists
 //       const bucketReady = await ensureBucketExists("bookings");
 //       if (!bucketReady) {
-//         return res.status(500).json({ 
-//           message: "Storage bucket not available. Please contact administrator to set up Supabase storage bucket 'bookings'." 
+//         return res.status(500).json({
+//           message: "Storage bucket not available. Please contact administrator to set up Supabase storage bucket 'bookings'."
 //         });
 //       }
 
@@ -114,21 +114,21 @@
 //           try {
 //             const file = req.files[fieldName][0];
 //             const fileName = `${Date.now()}-${file.originalname || `${fieldName}.pdf`}`;
-            
+
 //             console.log(`Uploading ${fieldName} to Supabase: ${fileName}`);
-            
+
 //             const { data, error } = await supabase.storage
 //               .from("bookings")
-//               .upload(`baptism/${fileName}`, file.buffer, { 
+//               .upload(`baptism/${fileName}`, file.buffer, {
 //                 contentType: file.mimetype || 'application/pdf',
-//                 upsert: false 
+//                 upsert: false
 //               });
-            
+
 //             if (error) {
 //               console.error(`Supabase upload error (${fieldName}):`, error);
 //               if (error.message?.includes("Bucket not found")) {
-//                 return res.status(500).json({ 
-//                   message: "Storage bucket 'bookings' not found. Please create it in Supabase dashboard or contact administrator." 
+//                 return res.status(500).json({
+//                   message: "Storage bucket 'bookings' not found. Please create it in Supabase dashboard or contact administrator."
 //                 });
 //               }
 //               return res.status(500).json({ message: `Failed to upload ${fieldName}. Please try again.` });
@@ -351,7 +351,9 @@ const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
  */
 function generateTransactionId() {
   const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  const random = Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, "0");
   return `BAP-${timestamp}-${random}`;
 }
 
@@ -359,31 +361,41 @@ function generateTransactionId() {
  * Helper function to ensure bucket exists (shared across all booking controllers)
  */
 async function ensureBucketExists(bucketName) {
-  const { data: buckets, error: listError } = await supabase.storage.listBuckets();
-  
+  const { data: buckets, error: listError } =
+    await supabase.storage.listBuckets();
+
   if (listError) {
     console.error("Error listing buckets:", listError);
     return false;
   }
-  
-  const bucketExists = buckets?.some(bucket => bucket.name === bucketName);
-  
+
+  const bucketExists = buckets?.some((bucket) => bucket.name === bucketName);
+
   if (!bucketExists) {
-    console.log(`Bucket "${bucketName}" does not exist. Attempting to create...`);
-    const { data: createData, error: createError } = await supabase.storage.createBucket(bucketName, {
-      public: false,
-      allowedMimeTypes: ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
-      fileSizeLimit: 10485760 // 10MB limit
-    });
-    
+    console.log(
+      `Bucket "${bucketName}" does not exist. Attempting to create...`
+    );
+    const { data: createData, error: createError } =
+      await supabase.storage.createBucket(bucketName, {
+        public: false,
+        allowedMimeTypes: [
+          "application/pdf",
+          "image/jpeg",
+          "image/jpg",
+          "image/png",
+          "image/webp",
+        ],
+        fileSizeLimit: 10485760, // 10MB limit
+      });
+
     if (createError) {
       console.error(`Error creating bucket "${bucketName}":`, createError);
       return false;
     }
-    
+
     console.log(`Bucket "${bucketName}" created successfully`);
   }
-  
+
   return true;
 }
 
@@ -393,26 +405,53 @@ async function ensureBucketExists(bucketName) {
  */
 async function createBaptism(req, res) {
   try {
-    const { uid, date, time, attendees, contact_number, main_godfather, main_godmother, additional_godparents, payment_method, amount } = req.body;
+    const {
+      uid,
+      date,
+      time,
+      attendees,
+      contact_number,
+      main_godfather,
+      main_godmother,
+      additional_godparents,
+      payment_method,
+      amount,
+    } = req.body;
 
-    if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
-    if (!date) return res.status(400).json({ message: "Baptism date is required." });
-    if (!time) return res.status(400).json({ message: "Baptism time is required." });
-    if (!attendees || attendees <= 0) return res.status(400).json({ message: "Valid number of attendees is required." });
+    if (!uid)
+      return res.status(400).json({ message: "User ID (uid) is required." });
+    if (!date)
+      return res.status(400).json({ message: "Baptism date is required." });
+    if (!time)
+      return res.status(400).json({ message: "Baptism time is required." });
+    if (!attendees || attendees <= 0)
+      return res
+        .status(400)
+        .json({ message: "Valid number of attendees is required." });
 
     const user = await UserModel.findOne({ uid, is_deleted: false });
     if (!user) return res.status(404).json({ message: "User not found." });
 
     // Handle uploaded PDF files
     let uploadedDocuments = {};
-    const documentFields = ['birth_certificate', 'parents_marriage_certificate', 'godparent_confirmation', 'baptismal_seminar'];
-    let proofOfPaymentPath = '';
+    const documentFields = [
+      "birth_certificate",
+      "parents_marriage_certificate",
+      "godparent_confirmation",
+      "baptismal_seminar",
+    ];
+    let proofOfPaymentPath = "";
 
     if (req.files) {
       const bucketReady = await ensureBucketExists("bookings");
-      if (!bucketReady) return res.status(500).json({ message: "Storage bucket not available. Please contact admin." });
+      if (!bucketReady)
+        return res
+          .status(500)
+          .json({
+            message: "Storage bucket not available. Please contact admin.",
+          });
 
-      const fs = require('fs');
+      const fs = require("fs");
 
       for (const fieldName of documentFields) {
         if (req.files[fieldName] && req.files[fieldName][0]) {
@@ -429,17 +468,21 @@ async function createBaptism(req, res) {
             continue;
           }
 
-          const fileName = `${Date.now()}-${file.originalname || `${fieldName}.pdf`}`;
+          const fileName = `${Date.now()}-${
+            file.originalname || `${fieldName}.pdf`
+          }`;
           const { data, error } = await supabase.storage
             .from("bookings")
             .upload(`baptism/${fileName}`, fileBuffer, {
-              contentType: file.mimetype || 'application/pdf',
+              contentType: file.mimetype || "application/pdf",
               upsert: false,
             });
 
           if (error) {
             console.error(`Failed to upload ${fieldName}:`, error);
-            return res.status(500).json({ message: `Failed to upload ${fieldName}.` });
+            return res
+              .status(500)
+              .json({ message: `Failed to upload ${fieldName}.` });
           }
 
           uploadedDocuments[fieldName] = data.path;
@@ -456,16 +499,20 @@ async function createBaptism(req, res) {
           fileBuffer = fs.readFileSync(file.path);
         }
         if (fileBuffer) {
-          const fileName = `${Date.now()}-${file.originalname || 'proof_of_payment.jpg'}`;
+          const fileName = `${Date.now()}-${
+            file.originalname || "proof_of_payment.jpg"
+          }`;
           const { data, error } = await supabase.storage
             .from("bookings")
             .upload(`baptism/payment/${fileName}`, fileBuffer, {
-              contentType: file.mimetype || 'image/jpeg',
+              contentType: file.mimetype || "image/jpeg",
               upsert: false,
             });
           if (error) {
-            console.error('Failed to upload proof of payment:', error);
-            return res.status(500).json({ message: 'Failed to upload proof of payment.' });
+            console.error("Failed to upload proof of payment:", error);
+            return res
+              .status(500)
+              .json({ message: "Failed to upload proof of payment." });
           }
           proofOfPaymentPath = data.path;
         }
@@ -476,109 +523,167 @@ async function createBaptism(req, res) {
 
     // Helper function to split name into first, middle, last
     function splitName(fullName) {
-      if (!fullName || typeof fullName !== 'string') {
-        return { first_name: '', middle_name: '', last_name: '' };
+      if (!fullName || typeof fullName !== "string") {
+        return { first_name: "", middle_name: "", last_name: "" };
       }
       const nameParts = fullName.trim().split(/\s+/);
       if (nameParts.length === 1) {
-        return { first_name: nameParts[0], middle_name: '', last_name: '' };
+        return { first_name: nameParts[0], middle_name: "", last_name: "" };
       } else if (nameParts.length === 2) {
-        return { first_name: nameParts[0], middle_name: '', last_name: nameParts[1] };
+        return {
+          first_name: nameParts[0],
+          middle_name: "",
+          last_name: nameParts[1],
+        };
       } else {
         // Assume last part is last name, first part is first name, rest is middle name
         return {
           first_name: nameParts[0],
-          middle_name: nameParts.slice(1, -1).join(' '),
-          last_name: nameParts[nameParts.length - 1]
+          middle_name: nameParts.slice(1, -1).join(" "),
+          last_name: nameParts[nameParts.length - 1],
         };
       }
     }
 
-    let godfatherData = {}, godmotherData = {}, additionalGodparentsArr = [];
+    let godfatherData = {},
+      godmotherData = {},
+      additionalGodparentsArr = [];
     try {
-      if (main_godfather) godfatherData = typeof main_godfather === 'string' ? JSON.parse(main_godfather) : main_godfather;
-      if (main_godmother) godmotherData = typeof main_godmother === 'string' ? JSON.parse(main_godmother) : main_godmother;
-      if (additional_godparents) additionalGodparentsArr = typeof additional_godparents === 'string' ? JSON.parse(additional_godparents) : additional_godparents;
+      if (main_godfather)
+        godfatherData =
+          typeof main_godfather === "string"
+            ? JSON.parse(main_godfather)
+            : main_godfather;
+      if (main_godmother)
+        godmotherData =
+          typeof main_godmother === "string"
+            ? JSON.parse(main_godmother)
+            : main_godmother;
+      if (additional_godparents)
+        additionalGodparentsArr =
+          typeof additional_godparents === "string"
+            ? JSON.parse(additional_godparents)
+            : additional_godparents;
     } catch (parseError) {
       console.error("Error parsing godparent data:", parseError);
     }
 
     // Parse godparent names - handle both old format (first_name, last_name) and new format (name)
-    const godfatherName = splitName(godfatherData.name || godfatherData.first_name || '');
-    const godmotherName = splitName(godmotherData.name || godmotherData.first_name || '');
+    const godfatherName = splitName(
+      godfatherData.name || godfatherData.first_name || ""
+    );
+    const godmotherName = splitName(
+      godmotherData.name || godmotherData.first_name || ""
+    );
 
     // Use user data as defaults for candidate and parents if not provided
-    const userFullNameParts = splitName(`${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim());
+    const userFullNameParts = splitName(
+      `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim()
+    );
     const defaultCandidateName = userFullNameParts;
 
-const baptismData = {
-  uid,
-  full_name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
-  email: user.email || '',
-  transaction_id,
-  date: new Date(date),
-  time: time.toString(),
-  attendees: parseInt(attendees),
-  contact_number: contact_number || user.contact_number,
-  
-  // Main godfather - parse from name field if provided, otherwise use first_name/last_name
-  main_godfather_first_name: godfatherName.first_name || godfatherData.first_name || 'TBD',
-  main_godfather_last_name: godfatherName.last_name || godfatherData.last_name || 'TBD',
-  main_godfather_middle_name: godfatherName.middle_name || godfatherData.middle_name || '',
-  
-  // Main godmother - parse from name field if provided, otherwise use first_name/last_name
-  main_godmother_first_name: godmotherName.first_name || godmotherData.first_name || 'TBD',
-  main_godmother_last_name: godmotherName.last_name || godmotherData.last_name || 'TBD',
-  main_godmother_middle_name: godmotherName.middle_name || godmotherData.middle_name || '',
+    const baptismData = {
+      uid,
+      full_name: `${user.first_name} ${user.middle_name || ""} ${
+        user.last_name
+      }`.trim(),
+      email: user.email || "",
+      transaction_id,
+      date: new Date(date),
+      time: time.toString(),
+      attendees: parseInt(attendees),
+      contact_number: contact_number || user.contact_number,
 
-  // Candidate - use user data as default if not provided
-  candidate_first_name: req.body.candidate_first_name || defaultCandidateName.first_name || user.first_name || 'TBD',
-  candidate_last_name: req.body.candidate_last_name || defaultCandidateName.last_name || user.last_name || 'TBD',
-  candidate_middle_name: req.body.candidate_middle_name || defaultCandidateName.middle_name || user.middle_name || '',
-  candidate_birthday: req.body.candidate_birthday ? new Date(req.body.candidate_birthday) : (user.birthday ? new Date(user.birthday) : new Date()),
-  candidate_birth_place: req.body.candidate_birth_place || 'TBD',
+      // Main godfather - parse from name field if provided, otherwise use first_name/last_name
+      main_godfather_first_name:
+        godfatherName.first_name || godfatherData.first_name || "TBD",
+      main_godfather_last_name:
+        godfatherName.last_name || godfatherData.last_name || "TBD",
+      main_godfather_middle_name:
+        godfatherName.middle_name || godfatherData.middle_name || "",
 
-  // Parents - use defaults if not provided
-  father_first_name: req.body.father_first_name || 'TBD',
-  father_last_name: req.body.father_last_name || 'TBD',
-  father_birth_place: req.body.father_birth_place || 'TBD',
-  mother_first_name: req.body.mother_first_name || 'TBD',
-  mother_last_name: req.body.mother_last_name || 'TBD',
-  mother_birth_place: req.body.mother_birth_place || 'TBD',
+      // Main godmother - parse from name field if provided, otherwise use first_name/last_name
+      main_godmother_first_name:
+        godmotherName.first_name || godmotherData.first_name || "TBD",
+      main_godmother_last_name:
+        godmotherName.last_name || godmotherData.last_name || "TBD",
+      main_godmother_middle_name:
+        godmotherName.middle_name || godmotherData.middle_name || "",
 
-  address: req.body.address || 'TBD',
-  marriage_type: req.body.marriage_type || 'TBD',
+      // Candidate - use user data as default if not provided
+      candidate_first_name:
+        req.body.candidate_first_name ||
+        defaultCandidateName.first_name ||
+        user.first_name ||
+        "TBD",
+      candidate_last_name:
+        req.body.candidate_last_name ||
+        defaultCandidateName.last_name ||
+        user.last_name ||
+        "TBD",
+      candidate_middle_name:
+        req.body.candidate_middle_name ||
+        defaultCandidateName.middle_name ||
+        user.middle_name ||
+        "",
+      candidate_birthday: req.body.candidate_birthday
+        ? new Date(req.body.candidate_birthday)
+        : user.birthday
+        ? new Date(user.birthday)
+        : new Date(),
+      candidate_birth_place: req.body.candidate_birth_place || "TBD",
 
-  additional_godparents: additionalGodparentsArr || [],
+      // Parents - use defaults if not provided
+      father_first_name: req.body.father_first_name || "TBD",
+      father_last_name: req.body.father_last_name || "TBD",
+      father_birth_place: req.body.father_birth_place || "TBD",
+      mother_first_name: req.body.mother_first_name || "TBD",
+      mother_last_name: req.body.mother_last_name || "TBD",
+      mother_birth_place: req.body.mother_birth_place || "TBD",
 
-  // Documents
-  birth_certificate: uploadedDocuments.birth_certificate || req.body.birth_certificate || '',
-  parents_marriage_certificate: uploadedDocuments.parents_marriage_certificate || req.body.parents_marriage_certificate || '',
-  godparent_confirmation: uploadedDocuments.godparent_confirmation || req.body.godparent_confirmation || '',
-  baptismal_seminar: uploadedDocuments.baptismal_seminar || req.body.baptismal_seminar || '',
+      address: req.body.address || "TBD",
+      marriage_type: req.body.marriage_type || "TBD",
 
-  status: "pending",
-  payment_method: payment_method || 'in_person',
-  proof_of_payment: proofOfPaymentPath,
-  amount: parseFloat(amount) || 0,
-};
+      additional_godparents: additionalGodparentsArr || [],
 
+      // Documents
+      birth_certificate:
+        uploadedDocuments.birth_certificate || req.body.birth_certificate || "",
+      parents_marriage_certificate:
+        uploadedDocuments.parents_marriage_certificate ||
+        req.body.parents_marriage_certificate ||
+        "",
+      godparent_confirmation:
+        uploadedDocuments.godparent_confirmation ||
+        req.body.godparent_confirmation ||
+        "",
+      baptismal_seminar:
+        uploadedDocuments.baptismal_seminar || req.body.baptismal_seminar || "",
+
+      status: "pending",
+      payment_method: payment_method || "in_person",
+      proof_of_payment: proofOfPaymentPath,
+      amount: parseFloat(amount) || 0,
+    };
 
     // Log the data being saved for debugging
-    console.log("Baptism data being saved:", JSON.stringify(baptismData, null, 2));
+    console.log(
+      "Baptism data being saved:",
+      JSON.stringify(baptismData, null, 2)
+    );
 
     const newBaptism = new BaptismModel(baptismData);
-    
+
     // Validate before saving
     const validationError = newBaptism.validateSync();
     if (validationError) {
       console.error("Validation error:", validationError);
-      return res.status(400).json({ 
-        message: "Validation error", 
-        errors: Object.keys(validationError.errors).map(key => ({
+      return res.status(400).json({
+        message: "Validation error",
+        errors: Object.keys(validationError.errors).map((key) => ({
           field: key,
-          message: validationError.errors[key].message
-        }))
+          message: validationError.errors[key].message,
+        })),
       });
     }
 
@@ -589,7 +694,9 @@ const baptismData = {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
       const adminIds = admins.map((admin) => admin.uid);
       if (adminIds.length > 0) {
-        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        const userName = `${user.first_name} ${user.middle_name || ""} ${
+          user.last_name
+        }`.trim();
         await notifyAllAdmins(
           adminIds,
           "booking",
@@ -609,29 +716,36 @@ const baptismData = {
         );
       }
     } catch (notificationError) {
-      console.error("Error sending admin notifications for baptism booking:", notificationError);
+      console.error(
+        "Error sending admin notifications for baptism booking:",
+        notificationError
+      );
       // Don't fail the request if notifications fail
     }
 
-    res.status(201).json({ message: "Baptism booking created successfully.", baptism: newBaptism, transaction_id });
-
+    res
+      .status(201)
+      .json({
+        message: "Baptism booking created successfully.",
+        baptism: newBaptism,
+        transaction_id,
+      });
   } catch (err) {
     console.error("Error creating baptism booking:", err.message);
     console.error("Error stack:", err.stack);
-    if (err.name === 'ValidationError') {
-      const errors = Object.keys(err.errors).map(key => ({
+    if (err.name === "ValidationError") {
+      const errors = Object.keys(err.errors).map((key) => ({
         field: key,
-        message: err.errors[key].message
+        message: err.errors[key].message,
       }));
-      return res.status(400).json({ 
-        message: "Validation error", 
-        errors 
+      return res.status(400).json({
+        message: "Validation error",
+        errors,
       });
     }
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
-
 
 /**
  * Get all baptism bookings for a user (include uid, name, email)
@@ -640,22 +754,32 @@ const baptismData = {
 async function getUserBaptisms(req, res) {
   try {
     const { uid } = req.body;
-    if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
+    if (!uid)
+      return res.status(400).json({ message: "User ID (uid) is required." });
 
     const user = await UserModel.findOne({ uid, is_deleted: false });
     if (!user) return res.status(404).json({ message: "User not found." });
 
-    const baptisms = await BaptismModel.find({ uid }).sort({ createdAt: -1 }).lean();
+    const baptisms = await BaptismModel.find({ uid })
+      .sort({ createdAt: -1 })
+      .lean();
 
-    const baptismsWithUser = baptisms.map(b => ({
+    const baptismsWithUser = baptisms.map((b) => ({
       ...b,
       uid: user.uid,
-      name: `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim(),
+      name: `${user.first_name} ${user.middle_name || ""} ${
+        user.last_name
+      }`.trim(),
       email: user.email,
     }));
 
-    res.status(200).json({ message: "Baptism bookings retrieved successfully.", baptisms: baptismsWithUser, count: baptismsWithUser.length });
-
+    res
+      .status(200)
+      .json({
+        message: "Baptism bookings retrieved successfully.",
+        baptisms: baptismsWithUser,
+        count: baptismsWithUser.length,
+      });
   } catch (err) {
     console.error("Error getting baptism bookings:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -669,21 +793,34 @@ async function getUserBaptisms(req, res) {
 async function getBaptism(req, res) {
   try {
     const { transaction_id } = req.body;
-    if (!transaction_id) return res.status(400).json({ message: "Transaction ID is required." });
+    if (!transaction_id)
+      return res.status(400).json({ message: "Transaction ID is required." });
 
     const baptism = await BaptismModel.findOne({ transaction_id }).lean();
-    if (!baptism) return res.status(404).json({ message: "Baptism booking not found." });
+    if (!baptism)
+      return res.status(404).json({ message: "Baptism booking not found." });
 
-    const user = await UserModel.findOne({ uid: baptism.uid, is_deleted: false }).lean();
+    const user = await UserModel.findOne({
+      uid: baptism.uid,
+      is_deleted: false,
+    }).lean();
     const baptismWithUser = {
       ...baptism,
       uid: user?.uid,
-      name: user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : "N/A",
+      name: user
+        ? `${user.first_name} ${user.middle_name || ""} ${
+            user.last_name
+          }`.trim()
+        : "N/A",
       email: user?.email || "N/A",
     };
 
-    res.status(200).json({ message: "Baptism booking retrieved successfully.", baptism: baptismWithUser });
-
+    res
+      .status(200)
+      .json({
+        message: "Baptism booking retrieved successfully.",
+        baptism: baptismWithUser,
+      });
   } catch (err) {
     console.error("Error getting baptism booking:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -697,17 +834,25 @@ async function getBaptism(req, res) {
 async function updateBaptismStatus(req, res) {
   try {
     const { transaction_id, status, priest_id, priest_name } = req.body;
-    if (!transaction_id) return res.status(400).json({ message: "Transaction ID is required." });
-    if (!status) return res.status(400).json({ message: "Status is required." });
+    if (!transaction_id)
+      return res.status(400).json({ message: "Transaction ID is required." });
+    if (!status)
+      return res.status(400).json({ message: "Status is required." });
 
     const validStatuses = ["pending", "confirmed", "cancelled"];
-    if (!validStatuses.includes(status)) return res.status(400).json({ message: `Status must be one of: ${validStatuses.join(", ")}` });
+    if (!validStatuses.includes(status))
+      return res
+        .status(400)
+        .json({
+          message: `Status must be one of: ${validStatuses.join(", ")}`,
+        });
 
     const baptism = await BaptismModel.findOne({ transaction_id });
-    if (!baptism) return res.status(404).json({ message: "Baptism booking not found." });
+    if (!baptism)
+      return res.status(404).json({ message: "Baptism booking not found." });
 
     baptism.status = status;
-    
+
     // Assign priest when confirming
     if (status === "confirmed" && priest_id) {
       baptism.priest_id = priest_id;
@@ -715,13 +860,19 @@ async function updateBaptismStatus(req, res) {
         baptism.priest_name = priest_name;
       } else if (priest_id) {
         // Fetch priest name if not provided
-        const priest = await UserModel.findOne({ uid: priest_id, is_priest: true, is_deleted: false });
+        const priest = await UserModel.findOne({
+          uid: priest_id,
+          is_priest: true,
+          is_deleted: false,
+        });
         if (priest) {
-          baptism.priest_name = `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim();
+          baptism.priest_name = `${priest.first_name} ${
+            priest.middle_name || ""
+          } ${priest.last_name}`.trim();
         }
       }
     }
-    
+
     await baptism.save();
 
     // Send notifications when booking status changes
@@ -736,11 +887,14 @@ async function updateBaptismStatus(req, res) {
       if (status === "confirmed") {
         // Notify the user
         let userIdToNotify = baptism.uid;
-        
+
         // If booking was created by admin, find user by email
-        if (baptism.uid === 'admin' && baptism.email) {
+        if (baptism.uid === "admin" && baptism.email) {
           console.log(`Finding user by email: ${baptism.email}`);
-          const user = await UserModel.findOne({ email: baptism.email, is_deleted: false });
+          const user = await UserModel.findOne({
+            email: baptism.email,
+            is_deleted: false,
+          });
           if (user && user.uid) {
             userIdToNotify = user.uid;
             console.log(`Found user with uid: ${userIdToNotify}`);
@@ -748,14 +902,18 @@ async function updateBaptismStatus(req, res) {
             console.log(`No user found with email: ${baptism.email}`);
           }
         }
-        
-        if (userIdToNotify && userIdToNotify !== 'admin') {
+
+        if (userIdToNotify && userIdToNotify !== "admin") {
           console.log(`Sending notification to user: ${userIdToNotify}`);
           await notifyUser(
             userIdToNotify,
             "booking_status",
             "Baptism Booking Confirmed",
-            `Your baptism booking (${baptism.transaction_id}) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${baptism.priest_name ? `, Priest: ${baptism.priest_name}` : ""}.`,
+            `Your baptism booking (${
+              baptism.transaction_id
+            }) has been confirmed. Date: ${bookingDate}, Time: ${bookingTime}${
+              baptism.priest_name ? `, Priest: ${baptism.priest_name}` : ""
+            }.`,
             {
               action: "BookingHistoryScreen",
               metadata: {
@@ -769,7 +927,9 @@ async function updateBaptismStatus(req, res) {
             }
           );
         } else {
-          console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
+          console.log(
+            `Skipping notification - invalid userId: ${userIdToNotify}`
+          );
         }
 
         // Notify the priest
@@ -794,21 +954,32 @@ async function updateBaptismStatus(req, res) {
             );
             console.log(`[BAPTISM] ✅ Priest notification sent successfully`);
           } catch (priestNotifyError) {
-            console.error(`[BAPTISM] ❌ Error notifying priest:`, priestNotifyError);
-            console.error(`[BAPTISM] Error message:`, priestNotifyError.message);
+            console.error(
+              `[BAPTISM] ❌ Error notifying priest:`,
+              priestNotifyError
+            );
+            console.error(
+              `[BAPTISM] Error message:`,
+              priestNotifyError.message
+            );
             console.error(`[BAPTISM] Error stack:`, priestNotifyError.stack);
           }
         } else {
-          console.log(`[BAPTISM] ⚠️ No priest_id provided, skipping priest notification`);
+          console.log(
+            `[BAPTISM] ⚠️ No priest_id provided, skipping priest notification`
+          );
         }
       } else if (status === "cancelled") {
         // Notify the user when booking is rejected
         let userIdToNotify = baptism.uid;
-        
+
         // If booking was created by admin, find user by email
-        if (baptism.uid === 'admin' && baptism.email) {
+        if (baptism.uid === "admin" && baptism.email) {
           console.log(`Finding user by email: ${baptism.email}`);
-          const user = await UserModel.findOne({ email: baptism.email, is_deleted: false });
+          const user = await UserModel.findOne({
+            email: baptism.email,
+            is_deleted: false,
+          });
           if (user && user.uid) {
             userIdToNotify = user.uid;
             console.log(`Found user with uid: ${userIdToNotify}`);
@@ -816,9 +987,11 @@ async function updateBaptismStatus(req, res) {
             console.log(`No user found with email: ${baptism.email}`);
           }
         }
-        
-        if (userIdToNotify && userIdToNotify !== 'admin') {
-          console.log(`Sending cancellation notification to user: ${userIdToNotify}`);
+
+        if (userIdToNotify && userIdToNotify !== "admin") {
+          console.log(
+            `Sending cancellation notification to user: ${userIdToNotify}`
+          );
           await notifyUser(
             userIdToNotify,
             "booking_status",
@@ -837,7 +1010,9 @@ async function updateBaptismStatus(req, res) {
             }
           );
         } else {
-          console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
+          console.log(
+            `Skipping cancellation notification - invalid userId: ${userIdToNotify}`
+          );
         }
       }
     } catch (notificationError) {
@@ -845,8 +1020,12 @@ async function updateBaptismStatus(req, res) {
       // Don't fail the request if notifications fail
     }
 
-    res.status(200).json({ message: "Baptism booking status updated successfully.", baptism });
-
+    res
+      .status(200)
+      .json({
+        message: "Baptism booking status updated successfully.",
+        baptism,
+      });
   } catch (err) {
     console.error("Error updating baptism status:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -861,23 +1040,37 @@ async function getAllBaptisms(req, res) {
   try {
     const baptisms = await BaptismModel.find().sort({ createdAt: -1 }).lean();
 
-    const userIds = baptisms.map(b => b.uid);
-    const users = await UserModel.find({ uid: { $in: userIds }, is_deleted: false }).lean();
+    const userIds = baptisms.map((b) => b.uid);
+    const users = await UserModel.find({
+      uid: { $in: userIds },
+      is_deleted: false,
+    }).lean();
     const userMap = {};
-    users.forEach(u => { userMap[u.uid] = u; });
+    users.forEach((u) => {
+      userMap[u.uid] = u;
+    });
 
-    const baptismsWithUser = baptisms.map(b => {
+    const baptismsWithUser = baptisms.map((b) => {
       const user = userMap[b.uid];
       return {
         ...b,
         uid: user?.uid,
-        name: user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : "N/A",
+        name: user
+          ? `${user.first_name} ${user.middle_name || ""} ${
+              user.last_name
+            }`.trim()
+          : "N/A",
         email: user?.email || "N/A",
       };
     });
 
-    res.status(200).json({ message: "All baptism bookings retrieved successfully.", baptisms: baptismsWithUser, count: baptismsWithUser.length });
-
+    res
+      .status(200)
+      .json({
+        message: "All baptism bookings retrieved successfully.",
+        baptisms: baptismsWithUser,
+        count: baptismsWithUser.length,
+      });
   } catch (err) {
     console.error("Error getting all baptism bookings:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -888,76 +1081,95 @@ async function AddBaptismalWeb(req, res) {
   try {
     const {
       uid,
-      email,
       transaction_id,
+      fullname,
+      email,
       date,
       time,
+      candidate_first_name,
+      candidate_last_name,
+      candidate_middle_name,
+      candidate_birth_place,
       attendees,
       contact_number,
-      groom_last_name,
-      groom_first_name,
-      groom_middle_name,
-      groom_pic,
-      bride_last_name,
-      bride_first_name,
-      bride_middle_name,
-      bride_pic,
-      marriage_docu,
-      groom_cenomar,
-      bride_cenomar,
-      groom_baptismal_cert,
-      bride_baptismal_cert,
-      groom_confirmation_cert,
-      bride_confirmation_cert,
-      groom_permission,
-      bride_permission,
+      mother_last_name,
+      mother_first_name,
+      mother_middle_name,
+      mother_birth_place,
+      father_last_name,
+      father_first_name,
+      father_middle_name,
+      father_birth_place,
+      main_godfather_last_name,
+      main_godfather_first_name,
+      main_godfather_middle_name,
+      main_godmother_last_name,
+      main_godmother_first_name,
+      main_godmother_middle_name,
+      other_godparents,
+      birth_certificate,
+      parents_marriage_certificate,
+      godparent_confirmation,
+      baptismal_seminar,
     } = req.body;
 
     // CREATE NEW DOCUMENT
-    const newWedding = new WeddingModel({
+    const newBaptismal = new BaptismalModel({
       uid,
-      email,
       transaction_id,
+      fullname,
+      email,
       date,
       time,
       attendees,
       contact_number,
-      groom_last_name,
-      groom_first_name,
-      groom_middle_name,
-      groom_pic,
-      bride_last_name,
-      bride_first_name,
-      bride_middle_name,
-      bride_pic,
-      marriage_docu,
-      groom_cenomar,
-      bride_cenomar,
-      groom_baptismal_cert,
-      bride_baptismal_cert,
-      groom_confirmation_cert,
-      bride_confirmation_cert,
-      groom_permission,
-      bride_permission,
+      candidate_first_name,
+      candidate_middle_name,
+      candidate_last_name,
+      candidate_birth_place,
+
+      mother_first_name,
+      mother_middle_name,
+      mother_last_name,
+      mother_birth_place,
+
+      father_first_name,
+      father_middle_name,
+      father_last_name,
+      father_birth_place,
+
+      main_godfather_first_name,
+      main_godfather_middle_name,
+      main_godfather_last_name,
+
+      main_godmother_first_name,
+      main_godmother_middle_name,
+      main_godmother_last_name,
+
+      other_godparents, // array
+      birth_certificate,
+      parents_marriage_certificate,
+      godparent_confirmation,
+      baptismal_seminar,
     });
 
     // SAVE TO DB
-    const savedWedding = await newWedding.save();
+    const savedBaptismal = await newBaptismal.save();
 
     res.status(201).json({
       success: true,
-      message: "Wedding booking created successfully",
-      data: savedWedding,
+      message: "Baptismal booking created successfully",
+      data: savedBaptismal,
     });
   } catch (error) {
-    console.error("ADD WEDDING ERROR:", error);
+    console.error("ADD BAPTISMAL ERROR:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to create wedding booking",
+      message: "Failed to create baptismal booking",
       error: error.message,
     });
   }
-};
+}
 
 module.exports = {
   BaptismModel,
