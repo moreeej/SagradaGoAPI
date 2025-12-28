@@ -39,6 +39,7 @@ const { Server } = require("socket.io");
 const allRoutes = require("./routes/routes");
 const ChatController = require("./controllers/ChatController");
 const ChatModel = require("./models/Chat");
+const FCMService = require("./services/FCMService");
 
 const MONGO_URL = process.env.MONGO;
 
@@ -116,7 +117,13 @@ io.on("connection", (socket) => {
 
       // Send message to the specific user room (for admin messages to user)
       if (senderType === "admin") {
-        io.to(`user-${userId}`).emit("receive-message", {
+        // Check if user is currently active in the chat room
+        const userRoom = `user-${userId}`;
+        const userRoomSockets = await io.in(userRoom).fetchSockets();
+        const isUserActive = userRoomSockets.length > 0;
+
+        // Send socket message to active user
+        io.to(userRoom).emit("receive-message", {
           message: {
             _id: lastMessage._id,
             senderId,
@@ -127,6 +134,34 @@ io.on("connection", (socket) => {
             seenAt: lastMessage.seenAt || null,
           },
         });
+
+        // Send push notification if user is not active on chat screen
+        if (!isUserActive) {
+          try {
+            const notificationTitle = "New Message from Admin";
+            const notificationBody = message.length > 50 
+              ? message.substring(0, 50) + "..." 
+              : message;
+            
+            await FCMService.sendToUser(
+              userId,
+              notificationTitle,
+              notificationBody,
+              {
+                type: "chat_message",
+                chatUserId: userId,
+                senderId: senderId,
+                senderName: senderName,
+                message: message,
+                timestamp: lastMessage.timestamp.toISOString(),
+              }
+            );
+            console.log(`Push notification sent to user ${userId} for admin message`);
+          } catch (notificationError) {
+            console.error("Error sending push notification:", notificationError);
+            // Don't fail the message send if notification fails
+          }
+        }
       } else {
         // For user messages, send confirmation back to user with proper _id
         io.to(`user-${userId}`).emit("message-sent", {
@@ -177,10 +212,12 @@ io.on("connection", (socket) => {
         if (socket.userType === "admin") {
           const now = new Date();
           let hasUpdates = false;
+          let updatedMessageIds = [];
           
           chat.messages.forEach((msg) => {
             if (msg.senderType === "user" && !msg.seenAt) {
               msg.seenAt = now;
+              updatedMessageIds.push(msg._id.toString());
               hasUpdates = true;
             }
           });
@@ -191,6 +228,7 @@ io.on("connection", (socket) => {
             io.to(`user-${userId}`).emit("messages-seen", {
               userId,
               seenAt: now,
+              messageIds: updatedMessageIds,
             });
           }
         }
