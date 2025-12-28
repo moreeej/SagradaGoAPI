@@ -26,6 +26,10 @@ const MessageSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  seenAt: {
+    type: Date,
+    default: null,
+  },
 });
 
 const ChatSchema = new mongoose.Schema(

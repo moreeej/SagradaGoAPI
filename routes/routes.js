@@ -216,6 +216,7 @@ router.post("/chat/getOrCreateChat", ChatController.getOrCreateChat);
 router.get("/chat/getAllChats", ChatController.getAllChats);
 router.get("/chat/getChatByUserId/:userId", ChatController.getChatByUserId);
 router.post("/chat/markAsRead", ChatController.markAsRead);
+router.post("/chat/markAsSeen", ChatController.markAsSeen);
 router.get("/chat/getUnreadCount", ChatController.getUnreadCount);
 
 // AI Chatbot routes

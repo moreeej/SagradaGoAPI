@@ -152,6 +152,54 @@ exports.markAsRead = async (req, res) => {
   }
 };
 
+// Mark messages as seen (for admin viewing user messages, or user viewing admin messages)
+exports.markAsSeen = async (req, res) => {
+  try {
+    const { userId, viewerType } = req.body; // viewerType: "admin" or "user"
+
+    if (!userId || !viewerType) {
+      return res.status(400).json({ message: "userId and viewerType are required" });
+    }
+
+    const chat = await ChatModel.findOne({ userId, isActive: true });
+
+    if (!chat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    const now = new Date();
+    let updatedMessages = [];
+
+    // Mark messages as seen based on viewer type
+    // If admin is viewing, mark user messages as seen
+    // If user is viewing, mark admin messages as seen
+    chat.messages.forEach((msg) => {
+      if (viewerType === "admin" && msg.senderType === "user") {
+        if (!msg.seenAt) {
+          msg.seenAt = now;
+          updatedMessages.push(msg._id);
+        }
+      } else if (viewerType === "user" && msg.senderType === "admin") {
+        if (!msg.seenAt) {
+          msg.seenAt = now;
+          updatedMessages.push(msg._id);
+        }
+      }
+    });
+
+    await chat.save();
+
+    res.json({ 
+      message: "Messages marked as seen", 
+      chat,
+      updatedMessageIds: updatedMessages 
+    });
+  } catch (error) {
+    console.error("Error marking messages as seen:", error);
+    res.status(500).json({ message: "Internal server error", error: error.message });
+  }
+};
+
 // Get unread count for admin
 exports.getUnreadCount = async (req, res) => {
   try {

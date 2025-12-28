@@ -111,26 +111,48 @@ io.on("connection", (socket) => {
         message
       );
 
-      // Send message to the specific user room
-      io.to(`user-${userId}`).emit("receive-message", {
-        message: {
-          senderId,
-          senderType,
-          senderName,
-          message,
-          timestamp: new Date(),
-        },
-      });
+      // Get the last message (the one just added)
+      const lastMessage = chat.messages[chat.messages.length - 1];
+
+      // Send message to the specific user room (for admin messages to user)
+      if (senderType === "admin") {
+        io.to(`user-${userId}`).emit("receive-message", {
+          message: {
+            _id: lastMessage._id,
+            senderId,
+            senderType,
+            senderName,
+            message,
+            timestamp: lastMessage.timestamp,
+            seenAt: lastMessage.seenAt || null,
+          },
+        });
+      } else {
+        // For user messages, send confirmation back to user with proper _id
+        io.to(`user-${userId}`).emit("message-sent", {
+          message: {
+            _id: lastMessage._id,
+            senderId,
+            senderType,
+            senderName,
+            message,
+            timestamp: lastMessage.timestamp,
+            seenAt: lastMessage.seenAt || null,
+          },
+        });
+      }
 
       // Notify admin room about new message
       io.to("admin-room").emit("new-message", {
         chat,
         message: {
+          _id: lastMessage._id,
           senderId,
           senderType,
           senderName,
           message,
-          timestamp: new Date(),
+          timestamp: lastMessage.timestamp,
+          seenAt: lastMessage.seenAt || null,
         },
       });
 
@@ -151,6 +173,28 @@ io.on("connection", (socket) => {
       const chat = await ChatModel.findOne({ userId, isActive: true });
       
       if (chat) {
+        // If admin is selecting chat, mark user messages as seen
+        if (socket.userType === "admin") {
+          const now = new Date();
+          let hasUpdates = false;
+          
+          chat.messages.forEach((msg) => {
+            if (msg.senderType === "user" && !msg.seenAt) {
+              msg.seenAt = now;
+              hasUpdates = true;
+            }
+          });
+          
+          if (hasUpdates) {
+            await chat.save();
+            // Notify user that their messages were seen
+            io.to(`user-${userId}`).emit("messages-seen", {
+              userId,
+              seenAt: now,
+            });
+          }
+        }
+        
         socket.emit("selected-chat", { chat });
       } else {
         socket.emit("selected-chat", { chat: null });
@@ -158,6 +202,73 @@ io.on("connection", (socket) => {
     } catch (error) {
       console.error("Error selecting chat:", error);
       socket.emit("error", { message: "Failed to load chat" });
+    }
+  });
+
+  // Handle mark as seen event
+  socket.on("mark-as-seen", async ({ userId, viewerType }) => {
+    try {
+      const chat = await ChatModel.findOne({ userId, isActive: true });
+      
+      if (!chat) {
+        return socket.emit("error", { message: "Chat not found" });
+      }
+
+      const now = new Date();
+      let updatedMessageIds = [];
+      let hasUpdates = false;
+
+      // Mark messages as seen based on viewer type
+      chat.messages.forEach((msg) => {
+        if (viewerType === "admin" && msg.senderType === "user") {
+          if (!msg.seenAt) {
+            msg.seenAt = now;
+            updatedMessageIds.push(msg._id.toString());
+            hasUpdates = true;
+          }
+        } else if (viewerType === "user" && msg.senderType === "admin") {
+          if (!msg.seenAt) {
+            msg.seenAt = now;
+            updatedMessageIds.push(msg._id.toString());
+            hasUpdates = true;
+          }
+        }
+      });
+
+      if (hasUpdates) {
+        await chat.save();
+        
+        // Notify the other party that messages were seen
+        if (viewerType === "admin") {
+          io.to(`user-${userId}`).emit("messages-seen", {
+            userId,
+            seenAt: now,
+            messageIds: updatedMessageIds,
+          });
+        } else if (viewerType === "user") {
+          io.to("admin-room").emit("messages-seen", {
+            userId,
+            seenAt: now,
+            messageIds: updatedMessageIds,
+          });
+        }
+
+        // Update the chat list for admin
+        if (viewerType === "user") {
+          const chats = await ChatModel.find({ isActive: true })
+            .sort({ lastMessage: -1 })
+            .exec();
+          io.to("admin-room").emit("chat-list", { chats });
+        }
+      }
+
+      socket.emit("seen-updated", {
+        success: true,
+        updatedMessageIds,
+      });
+    } catch (error) {
+      console.error("Error marking messages as seen:", error);
+      socket.emit("error", { message: "Failed to mark messages as seen" });
     }
   });
 
