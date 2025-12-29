@@ -289,7 +289,9 @@ async function createUser(req, res) {
       email, 
       password,
       uid,
-      is_priest
+      is_priest,
+      previous_parish,
+      residency
     } = req.body;
 
     // Validate required fields
@@ -330,7 +332,9 @@ async function createUser(req, res) {
       email: email.trim().toLowerCase(),
       password: hashedPassword,
       uid,
-      is_priest: is_priest || false
+      is_priest: is_priest || false,
+      previous_parish: previous_parish || "",
+      residency: residency || ""
     });
 
     await newUser.save();
@@ -346,6 +350,8 @@ async function createUser(req, res) {
       // civil_status: newUser.civil_status,
       birthday: newUser.birthday,
       is_priest: newUser.is_priest,
+      previous_parish: newUser.previous_parish,
+      residency: newUser.residency,
       volunteers: [] // New users have no volunteers yet
     };
 
@@ -397,6 +403,8 @@ async function findUser(req, res) {
       // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
+      previous_parish: user.previous_parish,
+      residency: user.residency,
       volunteers: userVolunteers || []
     };
     
@@ -444,6 +452,8 @@ async function login(req, res) {
       // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
+      previous_parish: user.previous_parish,
+      residency: user.residency,
       volunteers: userVolunteers || []
     };
 
@@ -470,6 +480,8 @@ async function getAllUsers(req, res) {
       contact_number: user.contact_number,
       birthday: user.birthday,
       is_priest: user.is_priest,
+      previous_parish: user.previous_parish,
+      residency: user.residency,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     }));
@@ -584,6 +596,8 @@ async function updateUser(req, res) {
       birthday,
       email,
       is_priest,
+      previous_parish,
+      residency,
     } = req.body;
 
     if (!uid) {
@@ -646,6 +660,8 @@ async function updateUser(req, res) {
     if (birthday !== undefined) user.birthday = birthday;
     if (email !== undefined) user.email = email.trim().toLowerCase();
     if (is_priest !== undefined) user.is_priest = is_priest;
+    if (previous_parish !== undefined) user.previous_parish = previous_parish || "";
+    if (residency !== undefined) user.residency = residency || "";
 
     await user.save();
 
@@ -700,6 +716,8 @@ async function updateUser(req, res) {
       // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
+      previous_parish: user.previous_parish,
+      residency: user.residency,
       volunteers: userVolunteers || []
     };
 

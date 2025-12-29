@@ -178,6 +178,15 @@ const UserSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    previous_parish: {
+      type: String,
+      default: "",
+    },
+    residency: {
+      type: String,
+      enum: ["Permanent", "Temporary"],
+      default: "",
+    },
     is_active: { 
       type: Boolean, 
       default: true 
