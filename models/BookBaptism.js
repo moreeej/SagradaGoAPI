@@ -192,6 +192,10 @@ const BaptismSchema = new mongoose.Schema(
       type: Number,
       default: 2000,
     },
+    admin_comment: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

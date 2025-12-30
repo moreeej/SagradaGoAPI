@@ -125,6 +125,10 @@ const WeddingSchema = new mongoose.Schema(
       type: Number,
       default: 5000,
     },
+    admin_comment: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );

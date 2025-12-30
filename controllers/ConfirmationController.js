@@ -523,7 +523,7 @@ async function getConfirmation(req, res) {
  */
 async function updateConfirmationStatus(req, res) {
   try {
-    const { transaction_id, status, priest_id, priest_name } = req.body;
+    const { transaction_id, status, priest_id, priest_name, admin_comment } = req.body;
     if (!transaction_id) return res.status(400).json({ message: "Transaction ID is required." });
     if (!status) return res.status(400).json({ message: "Status is required." });
 
@@ -547,6 +547,11 @@ async function updateConfirmationStatus(req, res) {
           confirmation.priest_name = `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim();
         }
       }
+    }
+    
+    // Save admin comment if provided
+    if (admin_comment !== undefined) {
+      confirmation.admin_comment = admin_comment || null;
     }
     
     await confirmation.save();

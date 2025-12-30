@@ -82,6 +82,10 @@ const ConfirmationSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    admin_comment: {
+      type: String,
+      default: null,
+    },
   },
   { timestamps: true }
 );
