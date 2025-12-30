@@ -1183,12 +1183,120 @@ async function AddBaptismalWeb(req, res) {
   }
 }
 
+/**
+ * Update baptism booking details (admin only)
+ */
+async function updateBaptism(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, attendees, email, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const baptism = await BaptismModel.findOne({ transaction_id });
+    if (!baptism) {
+      return res.status(404).json({ message: "Baptism booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      baptism.date = new Date(date);
+    }
+    if (time !== undefined) {
+      baptism.time = time;
+    }
+    if (contact_number !== undefined) {
+      baptism.contact_number = contact_number;
+    }
+    if (attendees !== undefined) {
+      baptism.attendees = attendees;
+    }
+    if (email !== undefined) {
+      baptism.email = email;
+    }
+    if (admin_comment !== undefined) {
+      baptism.admin_comment = admin_comment || null;
+    }
+
+    await baptism.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(baptism.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = baptism.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = baptism.uid;
+      
+      if (baptism.uid === 'admin' && baptism.email) {
+        const user = await UserModel.findOne({ email: baptism.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Baptism Booking Updated",
+          `Your baptism booking (${baptism.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: baptism.transaction_id,
+              booking_type: "Baptism",
+              date: baptism.date,
+              time: baptism.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (baptism.priest_id && baptism.status === "confirmed") {
+        await notifyUser(
+          baptism.priest_id,
+          "booking_updated",
+          "Baptism Assignment Updated",
+          `A baptism booking (${baptism.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: baptism.transaction_id,
+              booking_type: "Baptism",
+              date: baptism.date,
+              time: baptism.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Baptism booking updated successfully.", baptism });
+
+  } catch (err) {
+    console.error("Error updating baptism:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   BaptismModel,
   createBaptism,
   getUserBaptisms,
   getBaptism,
   updateBaptismStatus,
+  updateBaptism,
   getAllBaptisms,
   AddBaptismalWeb,
 };

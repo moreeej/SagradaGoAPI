@@ -718,11 +718,119 @@ async function getAllCommunions(req, res) {
   }
 }
 
+/**
+ * Update communion booking details (admin only)
+ */
+async function updateCommunion(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, attendees, email, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const communion = await CommunionModel.findOne({ transaction_id });
+    if (!communion) {
+      return res.status(404).json({ message: "Communion booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      communion.date = new Date(date);
+    }
+    if (time !== undefined) {
+      communion.time = time;
+    }
+    if (contact_number !== undefined) {
+      communion.contact_number = contact_number;
+    }
+    if (attendees !== undefined) {
+      communion.attendees = attendees;
+    }
+    if (email !== undefined) {
+      communion.email = email;
+    }
+    if (admin_comment !== undefined) {
+      communion.admin_comment = admin_comment || null;
+    }
+
+    await communion.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(communion.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = communion.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = communion.uid;
+      
+      if (communion.uid === 'admin' && communion.email) {
+        const user = await UserModel.findOne({ email: communion.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Communion Booking Updated",
+          `Your communion booking (${communion.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: communion.transaction_id,
+              booking_type: "Communion",
+              date: communion.date,
+              time: communion.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (communion.priest_id && communion.status === "confirmed") {
+        await notifyUser(
+          communion.priest_id,
+          "booking_updated",
+          "Communion Assignment Updated",
+          `A communion booking (${communion.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: communion.transaction_id,
+              booking_type: "Communion",
+              date: communion.date,
+              time: communion.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Communion booking updated successfully.", communion });
+
+  } catch (err) {
+    console.error("Error updating communion:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   CommunionModel,
   createCommunion,
   getUserCommunions,
   getCommunion,
   updateCommunionStatus,
+  updateCommunion,
   getAllCommunions,
 };

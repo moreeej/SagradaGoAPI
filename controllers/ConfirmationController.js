@@ -715,12 +715,120 @@ async function getAllConfirmations(req, res) {
   }
 }
 
+/**
+ * Update confirmation booking details (admin only)
+ */
+async function updateConfirmation(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, attendees, email, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const confirmation = await ConfirmationModel.findOne({ transaction_id });
+    if (!confirmation) {
+      return res.status(404).json({ message: "Confirmation booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      confirmation.date = new Date(date);
+    }
+    if (time !== undefined) {
+      confirmation.time = time;
+    }
+    if (contact_number !== undefined) {
+      confirmation.contact_number = contact_number;
+    }
+    if (attendees !== undefined) {
+      confirmation.attendees = attendees;
+    }
+    if (email !== undefined) {
+      confirmation.email = email;
+    }
+    if (admin_comment !== undefined) {
+      confirmation.admin_comment = admin_comment || null;
+    }
+
+    await confirmation.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(confirmation.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = confirmation.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = confirmation.uid;
+      
+      if (confirmation.uid === 'admin' && confirmation.email) {
+        const user = await UserModel.findOne({ email: confirmation.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Confirmation Booking Updated",
+          `Your confirmation booking (${confirmation.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: confirmation.transaction_id,
+              booking_type: "Confirmation",
+              date: confirmation.date,
+              time: confirmation.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (confirmation.priest_id && confirmation.status === "confirmed") {
+        await notifyUser(
+          confirmation.priest_id,
+          "booking_updated",
+          "Confirmation Assignment Updated",
+          `A confirmation booking (${confirmation.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: confirmation.transaction_id,
+              booking_type: "Confirmation",
+              date: confirmation.date,
+              time: confirmation.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Confirmation booking updated successfully.", confirmation });
+
+  } catch (err) {
+    console.error("Error updating confirmation:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   ConfirmationModel,
   createConfirmation,
   getUserConfirmations,
   getConfirmation,
   updateConfirmationStatus,
+  updateConfirmation,
   getAllConfirmations,
 };
 

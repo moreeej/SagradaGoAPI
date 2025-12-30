@@ -747,12 +747,120 @@ async function getAllBurials(req, res) {
   }
 }
 
+/**
+ * Update burial booking details (admin only)
+ */
+async function updateBurial(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, attendees, email, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const burial = await BurialModel.findOne({ transaction_id });
+    if (!burial) {
+      return res.status(404).json({ message: "Burial booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      burial.date = new Date(date);
+    }
+    if (time !== undefined) {
+      burial.time = time;
+    }
+    if (contact_number !== undefined) {
+      burial.contact_number = contact_number;
+    }
+    if (attendees !== undefined) {
+      burial.attendees = attendees;
+    }
+    if (email !== undefined) {
+      burial.email = email;
+    }
+    if (admin_comment !== undefined) {
+      burial.admin_comment = admin_comment || null;
+    }
+
+    await burial.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(burial.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = burial.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = burial.uid;
+      
+      if (burial.uid === 'admin' && burial.email) {
+        const user = await UserModel.findOne({ email: burial.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Burial Booking Updated",
+          `Your burial booking (${burial.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: burial.transaction_id,
+              booking_type: "Burial",
+              date: burial.date,
+              time: burial.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (burial.priest_id && burial.status === "confirmed") {
+        await notifyUser(
+          burial.priest_id,
+          "booking_updated",
+          "Burial Assignment Updated",
+          `A burial booking (${burial.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: burial.transaction_id,
+              booking_type: "Burial",
+              date: burial.date,
+              time: burial.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Burial booking updated successfully.", burial });
+
+  } catch (err) {
+    console.error("Error updating burial:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   BurialModel,
   createBurial,
   getUserBurials,
   getBurial,
   updateBurialStatus,
+  updateBurial,
   getAllBurials,
 };
 

@@ -518,11 +518,119 @@ async function getAllAnointings(req, res) {
   }
 }
 
+/**
+ * Update anointing booking details (admin only)
+ */
+async function updateAnointing(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, email, medical_condition, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const anointing = await AnointingModel.findOne({ transaction_id });
+    if (!anointing) {
+      return res.status(404).json({ message: "Anointing booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      anointing.date = new Date(date);
+    }
+    if (time !== undefined) {
+      anointing.time = time;
+    }
+    if (contact_number !== undefined) {
+      anointing.contact_number = contact_number;
+    }
+    if (email !== undefined) {
+      anointing.email = email;
+    }
+    if (medical_condition !== undefined) {
+      anointing.medical_condition = medical_condition;
+    }
+    if (admin_comment !== undefined) {
+      anointing.admin_comment = admin_comment || null;
+    }
+
+    await anointing.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(anointing.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = anointing.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = anointing.uid;
+      
+      if (anointing.uid === 'admin' && anointing.email) {
+        const user = await UserModel.findOne({ email: anointing.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Anointing Booking Updated",
+          `Your anointing booking (${anointing.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: anointing.transaction_id,
+              booking_type: "Anointing",
+              date: anointing.date,
+              time: anointing.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (anointing.priest_id && anointing.status === "confirmed") {
+        await notifyUser(
+          anointing.priest_id,
+          "booking_updated",
+          "Anointing Assignment Updated",
+          `An anointing booking (${anointing.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: anointing.transaction_id,
+              booking_type: "Anointing",
+              date: anointing.date,
+              time: anointing.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Anointing booking updated successfully.", anointing });
+
+  } catch (err) {
+    console.error("Error updating anointing:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   AnointingModel,
   createAnointing,
   getUserAnointings,
   getAnointing,
   updateAnointingStatus,
+  updateAnointing,
   getAllAnointings,
 };

@@ -86,6 +86,7 @@ router.post("/createWedding", upload.fields([
 router.post("/getUserWeddings", WeddingController.getUserWeddings);
 router.post("/getWedding", WeddingController.getWedding);
 router.put("/updateWeddingStatus", WeddingController.updateWeddingStatus);
+router.put("/updateWedding", WeddingController.updateWedding);
 
 // Wedding routes (admin)
 router.get("/admin/getAllWeddings", WeddingController.getAllWeddings);
@@ -104,6 +105,7 @@ router.post("/createBaptism", upload.fields([
 router.post("/getUserBaptisms", BaptismController.getUserBaptisms);
 router.post("/getBaptism", BaptismController.getBaptism);
 router.put("/updateBaptismStatus", BaptismController.updateBaptismStatus);
+router.put("/updateBaptism", BaptismController.updateBaptism);
 
 // Baptism routes (admin)
 router.get("/admin/getAllBaptisms", BaptismController.getAllBaptisms);
@@ -118,6 +120,7 @@ router.post("/createBurial", upload.fields([
 router.post("/getUserBurials", BurialController.getUserBurials);
 router.post("/getBurial", BurialController.getBurial);
 router.put("/updateBurialStatus", BurialController.updateBurialStatus);
+router.put("/updateBurial", BurialController.updateBurial);
 
 // Burial routes (admin)
 router.get("/admin/getAllBurials", BurialController.getAllBurials);
@@ -132,6 +135,7 @@ router.post("/createCommunion", upload.fields([
 router.post("/getUserCommunions", CommunionController.getUserCommunions);
 router.post("/getCommunion", CommunionController.getCommunion);
 router.put("/updateCommunionStatus", CommunionController.updateCommunionStatus);
+router.put("/updateCommunion", CommunionController.updateCommunion);
 
 // Communion routes (admin)
 router.get("/admin/getAllCommunions", CommunionController.getAllCommunions);
@@ -144,6 +148,7 @@ router.post("/createAnointing", upload.fields([
 router.post("/getUserAnointings", AnointingController.getUserAnointings);
 router.post("/getAnointing", AnointingController.getAnointing);
 router.put("/updateAnointingStatus", AnointingController.updateAnointingStatus);
+router.put("/updateAnointing", AnointingController.updateAnointing);
 
 // Anointing routes (admin)
 router.get("/admin/getAllAnointings", AnointingController.getAllAnointings);
@@ -159,6 +164,7 @@ router.post("/createConfirmation", upload.fields([
 router.post("/getUserConfirmations", ConfirmationController.getUserConfirmations);
 router.post("/getConfirmation", ConfirmationController.getConfirmation);
 router.put("/updateConfirmationStatus", ConfirmationController.updateConfirmationStatus);
+router.put("/updateConfirmation", ConfirmationController.updateConfirmation);
 
 // Confirmation routes (admin)
 router.get("/admin/getAllConfirmations", ConfirmationController.getAllConfirmations);
@@ -201,6 +207,7 @@ router.post("/createConfession", ConfessionController.createConfession);
 router.post("/getUserConfessions", ConfessionController.getUserConfessions);
 router.post("/getConfession", ConfessionController.getConfession);
 router.put("/updateConfessionStatus", ConfessionController.updateConfessionStatus);
+router.put("/updateConfession", ConfessionController.updateConfession);
 
 // Confession routes (admin)
 router.get("/admin/getAllConfessions", ConfessionController.getAllConfessions);

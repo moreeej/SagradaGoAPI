@@ -599,12 +599,120 @@ async function AddWeddingBookingWeb(req, res) {
   }
 };
 
+/**
+ * Update wedding booking details (admin only)
+ */
+async function updateWedding(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, attendees, email, full_name, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const wedding = await WeddingModel.findOne({ transaction_id });
+    if (!wedding) {
+      return res.status(404).json({ message: "Wedding booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      wedding.date = new Date(date);
+    }
+    if (time !== undefined) {
+      wedding.time = time;
+    }
+    if (contact_number !== undefined) {
+      wedding.contact_number = contact_number;
+    }
+    if (attendees !== undefined) {
+      wedding.attendees = attendees;
+    }
+    if (email !== undefined) {
+      wedding.email = email;
+    }
+    if (admin_comment !== undefined) {
+      wedding.admin_comment = admin_comment || null;
+    }
+
+    await wedding.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(wedding.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = wedding.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = wedding.uid;
+      
+      if (wedding.uid === 'admin' && wedding.email) {
+        const user = await UserModel.findOne({ email: wedding.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Wedding Booking Updated",
+          `Your wedding booking (${wedding.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: wedding.transaction_id,
+              booking_type: "Wedding",
+              date: wedding.date,
+              time: wedding.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (wedding.priest_id && wedding.status === "confirmed") {
+        await notifyUser(
+          wedding.priest_id,
+          "booking_updated",
+          "Wedding Assignment Updated",
+          `A wedding booking (${wedding.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: wedding.transaction_id,
+              booking_type: "Wedding",
+              date: wedding.date,
+              time: wedding.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Wedding booking updated successfully.", wedding });
+
+  } catch (err) {
+    console.error("Error updating wedding:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {  
   WeddingModel,
   createWedding,
   getUserWeddings,
   getWedding,
   updateWeddingStatus,
+  updateWedding,
   getAllWeddings,
   getProofOfPayment,
   AddWeddingBookingWeb

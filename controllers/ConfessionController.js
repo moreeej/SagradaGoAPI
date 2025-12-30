@@ -322,11 +322,116 @@ const getAllConfessions = async (req, res) => {
   }
 };
 
+/**
+ * Update confession booking details (admin only)
+ */
+async function updateConfession(req, res) {
+  try {
+    const { transaction_id, date, time, contact_number, email, admin_comment } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ message: "Transaction ID is required." });
+    }
+
+    const confession = await ConfessionModel.findOne({ transaction_id });
+    if (!confession) {
+      return res.status(404).json({ message: "Confession booking not found." });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) {
+      confession.date = new Date(date);
+    }
+    if (time !== undefined) {
+      confession.time = time;
+    }
+    if (contact_number !== undefined) {
+      confession.contact_number = contact_number;
+    }
+    if (email !== undefined) {
+      confession.email = email;
+    }
+    if (admin_comment !== undefined) {
+      confession.admin_comment = admin_comment || null;
+    }
+
+    await confession.save();
+
+    // Send notifications to user and priest if booking is confirmed
+    try {
+      const bookingDate = new Date(confession.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const bookingTime = confession.time || "N/A";
+
+      // Notify the user
+      let userIdToNotify = confession.uid;
+      
+      if (confession.uid === 'admin' && confession.email) {
+        const user = await UserModel.findOne({ email: confession.email, is_deleted: false });
+        if (user && user.uid) {
+          userIdToNotify = user.uid;
+        }
+      }
+      
+      if (userIdToNotify && userIdToNotify !== 'admin') {
+        await notifyUser(
+          userIdToNotify,
+          "booking_updated",
+          "Confession Booking Updated",
+          `Your confession booking (${confession.transaction_id}) has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: confession.transaction_id,
+              booking_type: "Confession",
+              date: confession.date,
+              time: confession.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+
+      // Notify the priest if assigned
+      if (confession.priest_id && confession.status === "confirmed") {
+        await notifyUser(
+          confession.priest_id,
+          "booking_updated",
+          "Confession Assignment Updated",
+          `A confession booking (${confession.transaction_id}) you are assigned to has been updated. New Date: ${bookingDate}, Time: ${bookingTime}.`,
+          {
+            action: "BookingHistoryScreen",
+            metadata: {
+              booking_id: confession.transaction_id,
+              booking_type: "Confession",
+              date: confession.date,
+              time: confession.time,
+            },
+            priority: "high",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Error sending notifications:", notificationError);
+    }
+
+    res.status(200).json({ message: "Confession booking updated successfully.", confession });
+
+  } catch (err) {
+    console.error("Error updating confession:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   ConfessionModel,
   createConfession,
   getUserConfessions,
   getConfession,
   updateConfessionStatus,
+  updateConfession,
   getAllConfessions,
 };
