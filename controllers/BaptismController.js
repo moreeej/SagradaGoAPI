@@ -1090,8 +1090,10 @@ async function AddBaptismalWeb(req, res) {
       candidate_last_name,
       candidate_middle_name,
       candidate_birth_place,
+      candidate_birthday,
       attendees,
       contact_number,
+      address,
       mother_last_name,
       mother_first_name,
       mother_middle_name,
@@ -1100,13 +1102,14 @@ async function AddBaptismalWeb(req, res) {
       father_first_name,
       father_middle_name,
       father_birth_place,
+      marriage_type,
       main_godfather_last_name,
       main_godfather_first_name,
       main_godfather_middle_name,
       main_godmother_last_name,
       main_godmother_first_name,
       main_godmother_middle_name,
-      other_godparents,
+      additional_godparents,
       birth_certificate,
       parents_marriage_certificate,
       godparent_confirmation,
@@ -1114,7 +1117,7 @@ async function AddBaptismalWeb(req, res) {
     } = req.body;
 
     // CREATE NEW DOCUMENT
-    const newBaptismal = new BaptismalModel({
+    const newBaptismal = new BaptismModel({
       uid,
       transaction_id,
       fullname,
@@ -1123,10 +1126,12 @@ async function AddBaptismalWeb(req, res) {
       time,
       attendees,
       contact_number,
+      address,
       candidate_first_name,
       candidate_middle_name,
       candidate_last_name,
       candidate_birth_place,
+      candidate_birthday,
 
       mother_first_name,
       mother_middle_name,
@@ -1138,6 +1143,8 @@ async function AddBaptismalWeb(req, res) {
       father_last_name,
       father_birth_place,
 
+      marriage_type,
+
       main_godfather_first_name,
       main_godfather_middle_name,
       main_godfather_last_name,
@@ -1146,7 +1153,7 @@ async function AddBaptismalWeb(req, res) {
       main_godmother_middle_name,
       main_godmother_last_name,
 
-      other_godparents, // array
+      additional_godparents,
       birth_certificate,
       parents_marriage_certificate,
       godparent_confirmation,
