@@ -119,6 +119,13 @@ async function findUser(req, res) {
     // Get user's volunteers from Volunteer collection
     const userVolunteers = await VolunteerModel.find({ user_id: uid });
 
+    // Check if account is disabled
+    if (user.is_active === false) {
+      return res.status(403).json({ 
+        message: "Your account has been disabled. Please contact the administrator for assistance." 
+      });
+    }
+
     const userData = {
       uid: user.uid,
       email: user.email,
@@ -132,6 +139,7 @@ async function findUser(req, res) {
       is_priest: user.is_priest,
       previous_parish: user.previous_parish,
       residency: user.residency,
+      is_active: user.is_active === true, // Return actual boolean value
       volunteers: userVolunteers || []
     };
     
@@ -168,6 +176,13 @@ async function login(req, res) {
     // Get user's volunteers from Volunteer collection
     const userVolunteers = await VolunteerModel.find({ user_id: user.uid });
 
+    // Check if account is disabled
+    if (user.is_active === false) {
+      return res.status(403).json({ 
+        message: "Your account has been disabled. Please contact the administrator for assistance." 
+      });
+    }
+
     const userData = {
       uid: user.uid,
       email: user.email,
@@ -181,6 +196,7 @@ async function login(req, res) {
       is_priest: user.is_priest,
       previous_parish: user.previous_parish,
       residency: user.residency,
+      is_active: user.is_active !== false, // Ensure is_active is included
       volunteers: userVolunteers || []
     };
 
@@ -201,6 +217,7 @@ async function getAllUsers(req, res) {
     const usersData = users.map(user => ({
       uid: user.uid,
       email: user.email,
+      is_active: user.is_active, // Return actual value from database
       first_name: user.first_name,
       middle_name: user.middle_name,
       last_name: user.last_name,
@@ -388,7 +405,24 @@ async function updateUser(req, res) {
     if (email !== undefined) user.email = email.trim().toLowerCase();
     if (is_priest !== undefined) user.is_priest = is_priest;
     if (previous_parish !== undefined) user.previous_parish = previous_parish || "";
-    if (residency !== undefined) user.residency = residency || "";
+    
+    // Handle residency field properly - don't set empty string (not valid enum)
+    if (residency !== undefined) {
+      if (residency && (residency === "Permanent" || residency === "Temporary")) {
+        user.residency = residency;
+      } else {
+        // If not a valid enum value, set to undefined (will be omitted)
+        user.residency = undefined;
+      }
+    }
+    
+    // If user is not a priest, clear residency and previous_parish
+    if (user.is_priest === false) {
+      user.residency = undefined;
+      if (!previous_parish) {
+        user.previous_parish = undefined;
+      }
+    }
 
     await user.save();
 
@@ -584,6 +618,21 @@ async function updateUserStatus(req, res) {
     if (!user) return res.status(404).json({ message: "User not found." });
 
     user.is_active = is_active;
+    
+    // Fix residency field if it's an empty string (not a valid enum value)
+    // For non-priests, clear residency. For priests, ensure it's valid or undefined
+    if (!user.is_priest) {
+      // Non-priests shouldn't have residency set
+      if (user.residency === "" || !user.residency) {
+        user.residency = undefined;
+      }
+    } else {
+      // For priests, if residency is empty string, set to undefined
+      if (user.residency === "") {
+        user.residency = undefined;
+      }
+    }
+    
     await user.save();
 
     res.status(200).json({
