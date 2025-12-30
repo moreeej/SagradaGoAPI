@@ -667,4 +667,5 @@ module.exports = {
   updateAnointingStatus,
   updateAnointing,
   getAllAnointings,
+  createAnointing
 };
