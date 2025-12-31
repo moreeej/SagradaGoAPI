@@ -884,6 +884,7 @@ async function createBurialWeb(req, res) {
 
     const newBurial = new BurialModel({
       uid,
+      transaction_id,
       full_name,
       email,
       date,
