@@ -625,7 +625,7 @@ async function updateAnointing(req, res) {
   }
 }
 
-async function createAnointing(req, res) {
+async function createAnointingWeb(req, res) {
   try{
     const {
       uid, full_name, email, transaction_id, date, time, attendees, contact_number,
@@ -667,5 +667,5 @@ module.exports = {
   updateAnointingStatus,
   updateAnointing,
   getAllAnointings,
-  createAnointing
+  createAnointingWeb,
 };
