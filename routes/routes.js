@@ -149,7 +149,7 @@ router.post("/getUserAnointings", AnointingController.getUserAnointings);
 router.post("/getAnointing", AnointingController.getAnointing);
 router.put("/updateAnointingStatus", AnointingController.updateAnointingStatus);
 router.put("/updateAnointing", AnointingController.updateAnointing);
-router.post("/createAnointingWeb", AnointingController.createAnointing);
+
 
 // Anointing routes (admin)
 router.get("/admin/getAllAnointings", AnointingController.getAllAnointings);

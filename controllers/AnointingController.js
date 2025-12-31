@@ -625,39 +625,7 @@ async function updateAnointing(req, res) {
   }
 }
 
-async function createAnointingWeb(req, res) {
-  try{
-    const {
-      uid, full_name, email, transaction_id, date, time, attendees, contact_number,
-      medical_condition, medical_certificate, 
-    } = req.body;
 
-    const newAnointing = new AnointingModel({
-      uid,
-      full_name,
-      email,
-      transaction_id,
-      date,
-      time,
-      attendees,
-      contact_number,
-      medical_condition,
-      medical_certificate,
-    });
-
-     const saveAnointing = await newAnointing.save();
-
-    res.status(201).json({
-      success: true,
-      message: "Anointing booking created successfully",
-      data: saveAnointing,
-    });
-  }
-  catch(err){
-    console.error("Error creating anointing:", err);
-    res.status(500).json({ message: "Server error. Please try again later." });
-  }
-}
 
 module.exports = {
   AnointingModel,
@@ -667,5 +635,4 @@ module.exports = {
   updateAnointingStatus,
   updateAnointing,
   getAllAnointings,
-  createAnointingWeb,
 };
