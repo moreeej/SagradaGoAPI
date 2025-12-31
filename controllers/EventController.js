@@ -1,5 +1,7 @@
 const EventModel = require("../models/Event");
 const supabase = require("../config/supabaseClient");
+const UserModel = require("../models/User");
+const { sendToUsers } = require("../services/FCMService");
 
 /**
  * Get all events (for admin)
@@ -159,6 +161,53 @@ async function createEvent(req, res) {
 
     const event = new EventModel({ title, date, location, description, image });
     await event.save();
+
+    // Send push notifications to all users after event creation
+    try {
+      console.log("EventController: Sending push notifications to all users for new event");
+      
+      // Get all active users (excluding deleted and inactive users)
+      const allUsers = await UserModel.find({
+        is_deleted: false,
+        is_active: true
+      }).select('uid');
+
+      if (allUsers && allUsers.length > 0) {
+        const userIds = allUsers.map(user => user.uid).filter(Boolean);
+        
+        if (userIds.length > 0) {
+          // Format event date for notification
+          const eventDate = new Date(date).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+
+          // Prepare notification
+          const notificationTitle = "New Event: " + title;
+          const notificationBody = `Join us on ${eventDate} at ${location}`;
+          
+          const notificationData = {
+            type: 'new_event',
+            eventId: event._id.toString(),
+            eventTitle: title,
+            eventDate: date,
+            eventLocation: location,
+          };
+
+          // Send notifications to all users
+          const result = await sendToUsers(userIds, notificationTitle, notificationBody, notificationData);
+          console.log(`EventController: Sent notifications to ${result.success} users, ${result.failed} failed`);
+        } else {
+          console.log("EventController: No valid user IDs found");
+        }
+      } else {
+        console.log("EventController: No active users found");
+      }
+    } catch (notificationError) {
+      // Log error but don't fail the event creation
+      console.error("EventController: Error sending push notifications:", notificationError);
+    }
 
     res.status(201).json({
       message: "Event created successfully.",

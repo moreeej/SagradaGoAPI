@@ -222,6 +222,11 @@ async function sendToUsers(userIds, title, body, data = {}) {
       return { success: 0, failed: 0 };
     }
 
+    if (!admin || admin.apps.length === 0) {
+      console.error("FCMService: Firebase Admin not initialized - cannot send notifications");
+      return { success: 0, failed: userIds.length };
+    }
+
     // Get all tokens
     const tokenMap = await getUserFCMTokens(userIds);
     const tokens = Object.values(tokenMap).filter(Boolean);
@@ -231,7 +236,7 @@ async function sendToUsers(userIds, title, body, data = {}) {
       return { success: 0, failed: userIds.length };
     }
 
-    // Convert all data values to strings (FCM requirement) - EXACT format from working project
+    // Convert all data values to strings (FCM requirement)
     const dataPayload = {
       ...Object.fromEntries(
         Object.entries(data).map(([key, value]) => [key, String(value)])
@@ -239,39 +244,99 @@ async function sendToUsers(userIds, title, body, data = {}) {
       timestamp: new Date().toISOString(),
     };
 
-    const message = {
-      tokens: tokens,
-      notification: {
-        title: title,
-        body: body,
-      },
-      data: dataPayload,
-      android: {
-        priority: 'high',
+    // Try to use sendMulticast if available, otherwise fall back to individual sends
+    try {
+      // First, try sendMulticast (available in newer Firebase Admin SDK versions)
+      if (typeof admin.messaging().sendMulticast === 'function') {
+        const message = {
+          tokens: tokens,
+          notification: {
+            title: title,
+            body: body,
+          },
+          data: dataPayload,
+          android: {
+            priority: 'high',
+            notification: {
+              sound: 'default',
+              channelId: 'default',
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: 'default',
+                badge: 1,
+              },
+            },
+          },
+        };
+
+        const response = await admin.messaging().sendMulticast(message);
+        console.log(`FCMService: ✅ Sent ${response.successCount} notifications via multicast, ${response.failureCount} failed`);
+        
+        return {
+          success: response.successCount,
+          failed: response.failureCount,
+        };
+      }
+    } catch (multicastError) {
+      console.log("FCMService: sendMulticast not available, falling back to individual sends:", multicastError.message);
+    }
+
+    // Fallback: Send individual notifications in parallel
+    console.log(`FCMService: Sending ${tokens.length} notifications individually...`);
+    
+    const sendPromises = tokens.map(async (token) => {
+      const message = {
+        token: token,
         notification: {
-          sound: 'default',
-          channelId: 'default',
+          title: title,
+          body: body,
         },
-      },
-      apns: {
-        payload: {
-          aps: {
+        data: dataPayload,
+        android: {
+          priority: 'high',
+          notification: {
             sound: 'default',
-            badge: 1,
+            channelId: 'default',
           },
         },
-      },
-    };
+        apns: {
+          payload: {
+            aps: {
+              sound: 'default',
+              badge: 1,
+            },
+          },
+        },
+      };
 
-    const response = await admin.messaging().sendMulticast(message);
-    console.log(`FCMService: ✅ Sent ${response.successCount} notifications, ${response.failureCount} failed`);
+      try {
+        await admin.messaging().send(message);
+        return { success: true };
+      } catch (error) {
+        console.error(`FCMService: Error sending to token ${token.substring(0, 20)}...:`, error.message);
+        return { success: false, error: error.message };
+      }
+    });
+
+    // Wait for all notifications to complete
+    const results = await Promise.allSettled(sendPromises);
+    
+    const successCount = results.filter(r => 
+      r.status === 'fulfilled' && r.value.success === true
+    ).length;
+    const failedCount = tokens.length - successCount;
+
+    console.log(`FCMService: ✅ Sent ${successCount} notifications individually, ${failedCount} failed`);
     
     return {
-      success: response.successCount,
-      failed: response.failureCount,
+      success: successCount,
+      failed: failedCount,
     };
   } catch (error) {
-    console.error("FCMService: Error sending multicast notification:", error);
+    console.error("FCMService: Error sending notifications:", error);
     return { success: 0, failed: userIds.length };
   }
 }
