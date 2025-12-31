@@ -1,4 +1,6 @@
 const AnnouncementModel = require("../models/Announcement");
+const UserModel = require("../models/User");
+const { sendToUsers } = require("../services/FCMService");
 
 /** GET — All Announcements */
 const getAnnouncements = async (req, res) => {
@@ -26,6 +28,49 @@ const createAnnouncement = async (req, res) => {
     });
 
     await newAnnouncement.save();
+
+    // Send push notifications to all users after announcement creation
+    try {
+      console.log("AnnouncementController: Sending push notifications to all users for new announcement");
+      
+      // Get all active users (excluding deleted and inactive users)
+      const allUsers = await UserModel.find({
+        is_deleted: false,
+        is_active: true
+      }).select('uid');
+
+      if (allUsers && allUsers.length > 0) {
+        const userIds = allUsers.map(user => user.uid).filter(Boolean);
+        
+        if (userIds.length > 0) {
+          // Prepare notification
+          const notificationTitle = "New Announcement: " + title;
+          // Truncate content if too long for notification body
+          const maxContentLength = 100;
+          const notificationBody = content && content.length > maxContentLength 
+            ? content.substring(0, maxContentLength) + "..." 
+            : content || "Check out the latest announcement from the parish";
+          
+          const notificationData = {
+            type: 'new_announcement',
+            announcementId: newAnnouncement._id.toString(),
+            announcementTitle: title,
+            priority: priority || 'normal',
+          };
+
+          // Send notifications to all users
+          const result = await sendToUsers(userIds, notificationTitle, notificationBody, notificationData);
+          console.log(`AnnouncementController: Sent notifications to ${result.success} users, ${result.failed} failed`);
+        } else {
+          console.log("AnnouncementController: No valid user IDs found");
+        }
+      } else {
+        console.log("AnnouncementController: No active users found");
+      }
+    } catch (notificationError) {
+      // Log error but don't fail the announcement creation
+      console.error("AnnouncementController: Error sending push notifications:", notificationError);
+    }
 
     res.status(201).json({
       message: "Announcement created successfully!",
