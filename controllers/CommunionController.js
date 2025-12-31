@@ -670,6 +670,7 @@ async function createCommunionWeb(req, res) {
   try {
     const {
       uid,
+      transaction_id,
       full_name,
       email,
       date,

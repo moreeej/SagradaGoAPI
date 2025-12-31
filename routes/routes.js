@@ -121,6 +121,7 @@ router.post("/getUserBurials", BurialController.getUserBurials);
 router.post("/getBurial", BurialController.getBurial);
 router.put("/updateBurialStatus", BurialController.updateBurialStatus);
 router.put("/updateBurial", BurialController.updateBurial);
+router.post("/createBurialWeb", BurialController.createBurialWeb);
 
 // Burial routes (admin)
 router.get("/admin/getAllBurials", BurialController.getAllBurials);

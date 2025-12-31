@@ -854,6 +854,69 @@ async function updateBurial(req, res) {
   }
 }
 
+async function createBurialWeb(req, res) {
+  try{
+    const {
+      uid,
+      transaction_id,
+      full_name,
+      email,
+      date,
+      time,
+      attendees,
+      address,
+      deceased_name,
+      deceased_age,
+      deceased_civil_status,
+      requested_by,
+      relationship_to_deceased,
+      contact_number,
+      place_of_mass,
+      mass_address,
+      funeral_mass,
+      death_anniversary,
+      funeral_blessing,
+      tomb_blessing,
+      death_certificate,
+      deceased_baptismal,
+
+    } = req.body;
+
+    const newBurial = new BurialModel({
+      uid,
+      full_name,
+      email,
+      date,
+      time,
+      attendees,
+      address,
+      deceased_name,
+      deceased_age,
+      deceased_civil_status,
+      requested_by,
+      relationship_to_deceased,
+      contact_number,
+      place_of_mass,
+      mass_address,
+      funeral_mass,
+      death_anniversary,
+      funeral_blessing,
+      tomb_blessing,
+      death_certificate,
+      deceased_baptismal,
+
+    });
+
+    await newBurial.save();
+
+    res.status(201).json({ message: "Burial booking created successfully.", burial: newBurial });
+  }
+  catch(err){
+    console.error("Error creating burial booking:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
 module.exports = {
   BurialModel,
   createBurial,
@@ -862,5 +925,6 @@ module.exports = {
   updateBurialStatus,
   updateBurial,
   getAllBurials,
+  createBurialWeb
 };
 
