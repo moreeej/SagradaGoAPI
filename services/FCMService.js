@@ -321,7 +321,6 @@ async function sendToUsers(userIds, title, body, data = {}) {
       }
     });
 
-    // Wait for all notifications to complete
     const results = await Promise.allSettled(sendPromises);
     
     const successCount = results.filter(r => 
