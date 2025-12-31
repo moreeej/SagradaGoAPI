@@ -136,6 +136,7 @@ router.post("/getUserCommunions", CommunionController.getUserCommunions);
 router.post("/getCommunion", CommunionController.getCommunion);
 router.put("/updateCommunionStatus", CommunionController.updateCommunionStatus);
 router.put("/updateCommunion", CommunionController.updateCommunion);
+router.post("/createCommunionWeb", CommunionController.createCommunionWeb);
 
 // Communion routes (admin)
 router.get("/admin/getAllCommunions", CommunionController.getAllCommunions);

@@ -32,10 +32,6 @@ const CommunionSchema = mongoose.Schema(
       type: Number,
       required: true,
     },
-    uid: {
-      type: String,
-      default: '',
-    },
     contact_number: {
       type: String,
       default: '',
