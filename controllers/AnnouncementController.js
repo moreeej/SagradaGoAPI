@@ -29,18 +29,23 @@ const createAnnouncement = async (req, res) => {
 
     await newAnnouncement.save();
 
-    // Send push notifications to all users after announcement creation
+    // Send push notifications to all users and priests after announcement creation
     try {
-      console.log("AnnouncementController: Sending push notifications to all users for new announcement");
+      console.log("AnnouncementController: Sending push notifications to all users and priests for new announcement");
       
-      // Get all active users (excluding deleted and inactive users)
+      // Get all active users and priests (excluding deleted and inactive users)
+      // This includes both regular users and priests (is_priest: true)
       const allUsers = await UserModel.find({
         is_deleted: false,
         is_active: true
-      }).select('uid');
+      }).select('uid is_priest');
 
       if (allUsers && allUsers.length > 0) {
         const userIds = allUsers.map(user => user.uid).filter(Boolean);
+        const priestCount = allUsers.filter(user => user.is_priest === true).length;
+        const regularUserCount = allUsers.length - priestCount;
+        
+        console.log(`AnnouncementController: Found ${allUsers.length} active users (${regularUserCount} regular users, ${priestCount} priests)`);
         
         if (userIds.length > 0) {
           // Prepare notification

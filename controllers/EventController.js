@@ -162,18 +162,23 @@ async function createEvent(req, res) {
     const event = new EventModel({ title, date, location, description, image });
     await event.save();
 
-    // Send push notifications to all users after event creation
+    // Send push notifications to all users and priests after event creation
     try {
-      console.log("EventController: Sending push notifications to all users for new event");
+      console.log("EventController: Sending push notifications to all users and priests for new event");
       
-      // Get all active users (excluding deleted and inactive users)
+      // Get all active users and priests (excluding deleted and inactive users)
+      // This includes both regular users and priests (is_priest: true)
       const allUsers = await UserModel.find({
         is_deleted: false,
         is_active: true
-      }).select('uid');
+      }).select('uid is_priest');
 
       if (allUsers && allUsers.length > 0) {
         const userIds = allUsers.map(user => user.uid).filter(Boolean);
+        const priestCount = allUsers.filter(user => user.is_priest === true).length;
+        const regularUserCount = allUsers.length - priestCount;
+        
+        console.log(`EventController: Found ${allUsers.length} active users (${regularUserCount} regular users, ${priestCount} priests)`);
         
         if (userIds.length > 0) {
           // Format event date for notification
