@@ -73,7 +73,7 @@ async function getEventById(req, res) {
  */
 async function createEvent(req, res) {
   try {
-    const { title, type, date, location, description } = req.body;
+    const { title, type, date, time_start, time_end, location, description } = req.body;
     let image = "";
 
     if (req.file) {
@@ -159,7 +159,16 @@ async function createEvent(req, res) {
       }
     }
 
-    const event = new EventModel({ title, type: type || "event", date, location, description, image });
+    const event = new EventModel({ 
+      title, 
+      type: type || "event", 
+      date, 
+      time_start: time_start || "",
+      time_end: time_end || "",
+      location, 
+      description, 
+      image 
+    });
     await event.save();
 
     // Send push notifications to all users and priests after event creation
@@ -231,7 +240,7 @@ async function createEvent(req, res) {
  */
 async function updateEvent(req, res) {
   try {
-    const { eventId, title, type, date, location, description } = req.body;
+    const { eventId, title, type, date, time_start, time_end, location, description } = req.body;
 
     const event = await EventModel.findById(eventId);
     if (!event) return res.status(404).json({ message: "Event not found." });
@@ -239,6 +248,8 @@ async function updateEvent(req, res) {
     event.title = title || event.title;
     event.type = type !== undefined ? type : event.type;
     event.date = date || event.date;
+    if (time_start !== undefined) event.time_start = time_start;
+    if (time_end !== undefined) event.time_end = time_end;
     event.location = location || event.location;
     event.description = description !== undefined ? description : event.description;
 
