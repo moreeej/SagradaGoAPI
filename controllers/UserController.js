@@ -518,8 +518,8 @@ async function addVolunteer(req, res) {
     }
 
     // Validate required volunteer fields
-    if (!volunteer.name || !volunteer.contact || !volunteer.role) {
-      return res.status(400).json({ message: "Name, contact, and role are required." });
+    if (!volunteer.name || !volunteer.contact) {
+      return res.status(400).json({ message: "Name and contact are required." });
     }
 
     // Find the user
@@ -536,7 +536,6 @@ async function addVolunteer(req, res) {
       eventTitle: volunteer.eventTitle || "General Volunteer",
       name: volunteer.name,
       contact: volunteer.contact,
-      role: volunteer.role,
       status: "pending",
     });
 
@@ -559,14 +558,13 @@ async function addVolunteer(req, res) {
           adminIds,
           "volunteer",
           "New Volunteer Sign-up",
-          `${userName} has signed up as ${volunteer.role}${eventInfo}.`,
+          `${userName} has signed up to volunteer${eventInfo}.`,
           {
             action: "VolunteersList",
             metadata: {
               volunteer_id: newVolunteer._id.toString(),
               user_id: uid,
               user_name: userName,
-              role: volunteer.role,
               event_title: volunteer.eventTitle || 'General Volunteer',
             },
             priority: "medium",

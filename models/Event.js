@@ -7,6 +7,11 @@ const eventSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    type: {
+      type: String,
+      enum: ["event", "activity"],
+      default: "event",
+    },
     date: {
       type: Date,
       required: true,

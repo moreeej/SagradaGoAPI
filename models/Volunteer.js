@@ -23,11 +23,6 @@ const VolunteerSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    role: {
-      type: String,
-      required: true,
-      enum: ["Choir Member", "Usher", "Catechist", "Tech Team", "Others"],
-    },
     status: {
       type: String,
       enum: ["pending", "confirmed", "cancelled"],

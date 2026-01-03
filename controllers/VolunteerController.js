@@ -89,16 +89,15 @@ async function updateVolunteerStatus(req, res) {
 // Add a new volunteer
 async function addVolunteer(req, res) {
   try {
-    const { name, contact, role, user_id, eventId, eventTitle } = req.body;
+    const { name, contact, user_id, eventId, eventTitle } = req.body;
 
-    if (!name || !contact || !role || !user_id) {
+    if (!name || !contact || !user_id) {
       return res.status(400).json({ success: false, message: "Missing required fields." });
     }
 
     const newVolunteer = new VolunteerModel({
       name,
       contact,
-      role,
       user_id,
       event_id: eventId || null,     
       eventTitle: eventTitle || 'General Volunteer',
@@ -128,14 +127,13 @@ async function addVolunteer(req, res) {
           adminIds,
           "volunteer",
           "New Volunteer Sign-up",
-          `${userName} has signed up as ${role}${eventInfo}.`,
+          `${userName} has signed up to volunteer${eventInfo}.`,
           {
             action: "VolunteersList",
             metadata: {
               volunteer_id: newVolunteer._id.toString(),
               user_id: user_id || null,
               user_name: userName,
-              role: role,
               event_title: eventTitle || 'General Volunteer',
             },
             priority: "medium",
