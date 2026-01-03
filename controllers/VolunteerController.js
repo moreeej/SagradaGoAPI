@@ -95,6 +95,22 @@ async function addVolunteer(req, res) {
       return res.status(400).json({ success: false, message: "Missing required fields." });
     }
 
+    // Check if user has already volunteered/registered for this event
+    const existingVolunteer = await VolunteerModel.findOne({
+      user_id: user_id,
+      event_id: eventId || null,
+      status: { $ne: "cancelled" }
+    });
+
+    if (existingVolunteer) {
+      return res.status(400).json({ 
+        success: false, 
+        message: eventId 
+          ? "You have already volunteered/registered for this event." 
+          : "You have already signed up as a volunteer." 
+      });
+    }
+
     const newVolunteer = new VolunteerModel({
       name,
       contact,

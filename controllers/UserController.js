@@ -529,6 +529,21 @@ async function addVolunteer(req, res) {
       return res.status(404).json({ message: "User not found." });
     }
 
+    // Check if user has already volunteered/registered for this event
+    const existingVolunteer = await VolunteerModel.findOne({
+      user_id: uid,
+      event_id: volunteer.eventId || null,
+      status: { $ne: "cancelled" }
+    });
+
+    if (existingVolunteer) {
+      return res.status(400).json({ 
+        message: volunteer.eventId 
+          ? "You have already volunteered/registered for this event." 
+          : "You have already signed up as a volunteer." 
+      });
+    }
+
     // Create volunteer record in Volunteer collection
     const newVolunteer = new VolunteerModel({
       user_id: uid,
