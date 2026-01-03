@@ -28,6 +28,11 @@ const VolunteerSchema = new mongoose.Schema(
       enum: ["pending", "confirmed", "cancelled"],
       default: "pending",
     },
+    registration_type: {
+      type: String,
+      enum: ["participant", "volunteer"],
+      default: "volunteer",
+    },
   },
   { timestamps: true }
 );

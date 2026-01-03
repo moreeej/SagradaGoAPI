@@ -552,6 +552,7 @@ async function addVolunteer(req, res) {
       name: volunteer.name,
       contact: volunteer.contact,
       status: "pending",
+      registration_type: volunteer.registration_type || "volunteer", // 'participant' or 'volunteer'
     });
 
     await newVolunteer.save();
