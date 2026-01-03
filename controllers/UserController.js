@@ -48,6 +48,16 @@ async function createUser(req, res) {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
+    // Handle residency field properly - only set if it's a valid enum value
+    // For non-priests, residency should be undefined (not empty string)
+    let residencyValue = undefined;
+    if (residency && (residency === "Permanent" || residency === "Temporary")) {
+      residencyValue = residency;
+    }
+    
+    // Only set previous_parish if user is a priest
+    const previousParishValue = (is_priest && previous_parish) ? previous_parish : undefined;
+
     const newUser = new UserModel({
       first_name,
       middle_name,
@@ -60,8 +70,8 @@ async function createUser(req, res) {
       password: hashedPassword,
       uid,
       is_priest: is_priest || false,
-      previous_parish: previous_parish || "",
-      residency: residency || ""
+      previous_parish: previousParishValue,
+      residency: residencyValue
     });
 
     await newUser.save();
