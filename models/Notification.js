@@ -25,7 +25,8 @@ const NotificationSchema = new mongoose.Schema(
         "booking_status",
         "donation_status",
         "system",
-        "message"
+        "message",
+        "volunteer"
       ],
     },
     title: {
