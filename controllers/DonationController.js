@@ -245,7 +245,6 @@ async function createDonation(req, res) {
 
     // Validate required fields
     if (!uid) return res.status(400).json({ message: "User ID (uid) is required." });
-    if (!amount || amount <= 0) return res.status(400).json({ message: "Valid donation amount is required." });
     if (!paymentMethod) return res.status(400).json({ message: "Payment method is required." });
 
     // Validate payment method
@@ -254,6 +253,23 @@ async function createDonation(req, res) {
       return res.status(400).json({
         message: `Payment method must be one of: ${validPaymentMethods.join(", ")}`,
       });
+    }
+
+    // Validate amount: allow 0 for "In Kind" donations, otherwise require positive amount
+    if (paymentMethod === "In Kind") {
+      // For "In Kind" donations, amount should be 0
+      if (amount === undefined || amount === null || amount === "") {
+        return res.status(400).json({ message: "Amount is required." });
+      }
+      const amountNum = parseFloat(amount);
+      if (isNaN(amountNum) || amountNum !== 0) {
+        return res.status(400).json({ message: "Amount must be 0 for In Kind donations." });
+      }
+    } else {
+      // For other payment methods, amount must be positive
+      if (!amount || parseFloat(amount) <= 0) {
+        return res.status(400).json({ message: "Valid donation amount is required." });
+      }
     }
 
     // Find the user
@@ -416,14 +432,22 @@ async function createDonation(req, res) {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
       const adminIds = admins.map((admin) => admin.uid);
       if (adminIds.length > 0) {
+        // Create appropriate notification message based on payment method
+        let notificationMessage;
+        if (paymentMethod === "In Kind") {
+          notificationMessage = `${userName} has submitted an In Kind donation.`;
+        } else {
+          notificationMessage = `${userName} has submitted a donation of PHP ${parseFloat(amount).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })} via ${paymentMethod}.`;
+        }
+
         await notifyAllAdmins(
           adminIds,
           "donation_status",
           "New Donation Received",
-          `${userName} has submitted a donation of PHP ${parseFloat(amount).toLocaleString("en-US", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })} via ${paymentMethod}.`,
+          notificationMessage,
           {
             action: "DonationsScreen",
             metadata: {
