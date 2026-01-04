@@ -220,6 +220,7 @@ router.post("/getPriestSchedule", PriestScheduleController.getPriestSchedule);
 
 // Booking conflict check route
 router.post("/checkBookingConflict", BookingConflictController.checkBookingConflict);
+router.post("/checkPriestConflict", BookingConflictController.checkPriestConflict);
 
 // Chat routes
 router.post("/chat/getOrCreateChat", ChatController.getOrCreateChat);
