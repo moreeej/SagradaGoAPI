@@ -69,7 +69,7 @@ const WeddingSchema = new mongoose.Schema(
     },
     marriage_docu: {
       type: String,
-      required: true,
+      default: '',
     },
     groom_cenomar: {
       type: String,
@@ -79,19 +79,19 @@ const WeddingSchema = new mongoose.Schema(
     },
     groom_baptismal_cert: {
       type: String,
-      required: true,
+      default: '',
     },
     bride_baptismal_cert: {
       type: String,
-      required: true,
+      default: '',
     },
     groom_confirmation_cert: {
       type: String,
-      required: true,
+      default: '',
     },
     bride_confirmation_cert: {
       type: String,
-      required: true,
+      default: '',
     },
     groom_permission: {
       type: String,
