@@ -1,4 +1,5 @@
 const UserModel = require("../models/User")
+const ArchiveUserModel = require("../models/ArchiveUser")
 const VolunteerModel = require("../models/Volunteer")
 
 const bcrypt = require("bcrypt");
@@ -228,6 +229,7 @@ async function getAllUsers(req, res) {
       uid: user.uid,
       email: user.email,
       is_active: user.is_active, // Return actual value from database
+      is_archived: user.is_archived || false, // Include archived status
       first_name: user.first_name,
       middle_name: user.middle_name,
       last_name: user.last_name,
@@ -237,7 +239,8 @@ async function getAllUsers(req, res) {
       previous_parish: user.previous_parish,
       residency: user.residency,
       createdAt: user.createdAt,
-      updatedAt: user.updatedAt
+      updatedAt: user.updatedAt,
+      archived_at: user.archived_at || null
     }));
     return res.json(usersData);
   } catch (err) {
@@ -701,4 +704,99 @@ async function getAllPriests(req, res) {
   }
 }
 
-module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus, getAllPriests }
+async function archiveUser(req, res) {
+  try {
+    const { uid } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    // Find the user
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (user.is_archived) {
+      return res.status(400).json({ message: "User is already archived." });
+    }
+
+    // Create a copy of the user data for archive
+    const archiveUserData = user.toObject();
+    delete archiveUserData._id; // Remove the original _id
+    delete archiveUserData.__v; // Remove version key
+    
+    // Add archive metadata
+    archiveUserData.archived_at = new Date();
+    archiveUserData.is_archived = true;
+    archiveUserData.original_uid = uid; // Keep reference to original uid
+    
+    // Save to archive collection (ArchiveUsers)
+    const archivedUser = new ArchiveUserModel(archiveUserData);
+    await archivedUser.save();
+
+    // Mark user as archived in main collection (Users)
+    user.is_archived = true;
+    user.archived_at = new Date();
+    await user.save();
+
+    res.status(200).json({
+      message: "User archived successfully. User data has been saved to archive database.",
+      user: {
+        uid: user.uid,
+        email: user.email,
+        is_archived: user.is_archived,
+        archived_at: user.archived_at,
+      },
+    });
+
+  } catch (err) {
+    console.error("Error archiving user:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+async function unarchiveUser(req, res) {
+  try {
+    const { uid } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    // Find the user in main collection
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (!user.is_archived) {
+      return res.status(400).json({ message: "User is not archived." });
+    }
+
+    // Unarchive the user - just update the flag
+    // Keep the archive record for history
+    user.is_archived = false;
+    user.archived_at = null;
+    await user.save();
+
+    res.status(200).json({
+      message: "User unarchived successfully. User has been restored to active users.",
+      user: {
+        uid: user.uid,
+        email: user.email,
+        is_archived: user.is_archived,
+        archived_at: user.archived_at,
+      },
+    });
+
+  } catch (err) {
+    console.error("Error unarchiving user:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus, getAllPriests, archiveUser, unarchiveUser }

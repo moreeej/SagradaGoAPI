@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
-const bcrypt = require("bcrypt");
 
-// Donation subdocument schema
+// Donation subdocument schema (same as User model)
 const DonationSchema = new mongoose.Schema(
   {
     amount: {
@@ -25,28 +24,24 @@ const DonationSchema = new mongoose.Schema(
     },
     donation_id: {
       type: String,
-      // Reference to the main Donation collection _id
-      // This links the user's donation subdocument to the main donation record
     },
   },
   { timestamps: true }
 );
 
-const UserSchema = new mongoose.Schema(
+const ArchiveUserSchema = new mongoose.Schema(
   {
     email: {
       type: String,
       required: true,
-      unique: true,
     },
     password: {
       type: String,
       required: true,
     },
-    uid:{
+    uid: {
       type: String,
       required: true,
-      unique: true
     },
     first_name: {
       type: String,
@@ -59,26 +54,19 @@ const UserSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
-    // gender: {
-    //   type: String,
-    //   required: true,
-    // },
     contact_number: {
       type: String,
       required: true,
     },
-    // civil_status: {
-    //   type: String,
-    // },
     birthday: {
       type: Date,
       required: true,
     },
-    is_deleted:{
+    is_deleted: {
       type: Boolean,
       default: false
     },
-    is_priest:{
+    is_priest: {
       type: Boolean,
       default: false
     },
@@ -96,20 +84,24 @@ const UserSchema = new mongoose.Schema(
     },
     is_archived: {
       type: Boolean,
-      default: false
+      default: true
     },
     archived_at: {
       type: Date,
-      default: null
+      default: Date.now
+    },
+    original_uid: {
+      type: String,
+      required: true
     },
     donations: {
       type: [DonationSchema],
       default: [],
     },
   },
-  { timestamps: true }
+  { timestamps: true, collection: "archiveusers" }
 );
 
+const ArchiveUserModel = mongoose.model("ArchiveUsers", ArchiveUserSchema);
+module.exports = ArchiveUserModel;
 
-const UserModel = mongoose.model("Users", UserSchema);
-module.exports = UserModel;
