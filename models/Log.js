@@ -11,6 +11,8 @@ const LogSchema = new mongoose.Schema(
         "DISABLE_USER",
         "ENABLE_USER",
         "DELETE_USER",
+        "ARCHIVE_USER",
+        "UNARCHIVE_USER",
         "CREATE_ADMIN",
         "CREATE_ANNOUNCEMENT",
         "UPDATE_ANNOUNCEMENT",
