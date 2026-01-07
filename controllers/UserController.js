@@ -51,7 +51,7 @@ async function createUser(req, res) {
     // Handle residency field properly - only set if it's a valid enum value
     // For non-priests, residency should be undefined (not empty string)
     let residencyValue = undefined;
-    if (residency && (residency === "Permanent" || residency === "Temporary")) {
+    if (residency && (residency === "Permanent" || residency === "Floating")) {
       residencyValue = residency;
     }
     
@@ -418,7 +418,7 @@ async function updateUser(req, res) {
     
     // Handle residency field properly - don't set empty string (not valid enum)
     if (residency !== undefined) {
-      if (residency && (residency === "Permanent" || residency === "Temporary")) {
+      if (residency && (residency === "Permanent" || residency === "Floating")) {
         user.residency = residency;
       } else {
         // If not a valid enum value, set to undefined (will be omitted)

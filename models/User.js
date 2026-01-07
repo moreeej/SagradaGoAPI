@@ -88,7 +88,7 @@ const UserSchema = new mongoose.Schema(
     },
     residency: {
       type: String,
-      enum: ["Permanent", "Temporary"],
+      enum: ["Permanent", "Floating"],
     },
     is_active: { 
       type: Boolean, 
