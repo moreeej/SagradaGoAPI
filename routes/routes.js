@@ -21,6 +21,7 @@ const PriestScheduleController = require("../controllers/PriestScheduleControlle
 const ChatController = require("../controllers/ChatController");
 const BookingConflictController = require("../controllers/BookingConflictController");
 const DashboardController = require("../controllers/DashboardController");
+const LogController = require("../controllers/LogController");
 const upload = require("../middleware/upload");
 const testFCMRoute = require("./testFCM"); 
 
@@ -237,6 +238,12 @@ router.post("/chat/ai/clear", ChatController.clearAIChatHistory);
 
 // Dashboard AI Stats route
 router.get("/admin/ai/stats", DashboardController.getAIStatsAnalysis);
+
+// Log routes
+router.post("/admin/createLog", LogController.createLog);
+router.get("/admin/getAllLogs", LogController.getAllLogs);
+router.get("/admin/getLog/:id", LogController.getLogById);
+router.get("/admin/getLogsByAdmin/:adminId", LogController.getLogsByAdmin);
 
 // Test FCM route
 router.use("/", testFCMRoute);
