@@ -47,6 +47,7 @@ router.put("/updateUserRole", UserController.updateUserRole)
 router.put("/updateUserStatus", UserController.updateUserStatus)
 router.put("/archiveUser", UserController.archiveUser)
 router.put("/unarchiveUser", UserController.unarchiveUser)
+router.put("/admin/resetUserPassword", UserController.resetUserPassword)
 
 // Admin routes
 router.post("/createAdmin", AdminController.addAdmin)

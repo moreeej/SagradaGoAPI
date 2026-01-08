@@ -799,4 +799,51 @@ async function unarchiveUser(req, res) {
   }
 }
 
-module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus, getAllPriests, archiveUser, unarchiveUser }
+async function resetUserPassword(req, res) {
+  try {
+    const { uid } = req.body;
+
+    if (!uid) {
+      return res.status(400).json({ message: "User ID is required." });
+    }
+
+    // Find the user
+    const user = await UserModel.findOne({ uid, is_deleted: false });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({ message: "User email not found." });
+    }
+
+    // Generate password reset link using Firebase Admin SDK
+    const admin = require("../config/firebaseAdmin");
+    try {
+      const resetLink = await admin.auth().generatePasswordResetLink(user.email);
+      
+      // Note: In a production environment, you would send this link via email
+      // For now, we'll use Firebase's built-in sendPasswordResetEmail from the client side
+      // This endpoint just validates the user exists
+      
+      res.status(200).json({
+        message: "Password reset email will be sent to the user.",
+        email: user.email,
+        success: true,
+      });
+
+    } catch (firebaseError) {
+      console.error("Firebase password reset error:", firebaseError);
+      return res.status(500).json({ 
+        message: "Failed to generate password reset link. Please try again." 
+      });
+    }
+
+  } catch (err) {
+    console.error("Error resetting user password:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus, getAllPriests, archiveUser, unarchiveUser, resetUserPassword }
