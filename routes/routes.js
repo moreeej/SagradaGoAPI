@@ -22,6 +22,7 @@ const ChatController = require("../controllers/ChatController");
 const BookingConflictController = require("../controllers/BookingConflictController");
 const DashboardController = require("../controllers/DashboardController");
 const LogController = require("../controllers/LogController");
+const ScheduledNotificationService = require("../services/ScheduledNotificationService");
 const upload = require("../middleware/upload");
 const testFCMRoute = require("./testFCM"); 
 
@@ -249,6 +250,27 @@ router.get("/admin/getLogsByAdmin/:adminId", LogController.getLogsByAdmin);
 
 // Test FCM route
 router.use("/", testFCMRoute);
+
+// Scheduled notification routes
+router.post("/trigger-today-booking-notifications", async (req, res) => {
+  try {
+    console.log('🔔 Manual trigger of today booking notifications...');
+    
+    const result = await ScheduledNotificationService.scheduleTodayBookingNotifications();
+    
+    res.status(200).json({
+      success: true,
+      message: 'Today booking notifications triggered successfully',
+      result: result
+    });
+  } catch (error) {
+    console.error('Error triggering today booking notifications:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      message: error.message
+    });
+  }
+});
 
 // Cancel booking route (for all sacrament types)
 router.put("/cancelBooking", async (req, res) => {

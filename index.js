@@ -40,6 +40,7 @@ const allRoutes = require("./routes/routes");
 const ChatController = require("./controllers/ChatController");
 const ChatModel = require("./models/Chat");
 const FCMService = require("./services/FCMService");
+const ScheduledNotificationService = require("./services/ScheduledNotificationService");
 
 const MONGO_URL = process.env.MONGO;
 
@@ -320,5 +321,8 @@ const PORT = process.env.PORT || 8080;
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Socket.IO server ready`);
+  
+  // Start scheduled notifications for today's bookings
+  ScheduledNotificationService.scheduleDailyNotifications();
 });
 
