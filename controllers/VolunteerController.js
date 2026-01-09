@@ -54,69 +54,91 @@ async function getUserVolunteers(req, res) {
 }
 
 // Update volunteer status (for admins)
+async function updateVolunteerStatus(req, res) {
+  try {
+    const { volunteer_id, status } = req.body;
+
+    if (!volunteer_id || !status) {
+      return res.status(400).json({ message: "Volunteer ID and status are required." });
+    }
+
+    if (!["pending", "confirmed", "cancelled"].includes(status)) {
+      return res.status(400).json({ message: "Invalid status. Must be pending, confirmed, or cancelled." });
+    }
+
+    const volunteer = await VolunteerModel.findById(volunteer_id);
+
+    if (!volunteer) {
+      return res.status(404).json({ message: "Volunteer not found." });
+    }
+
+    volunteer.status = status;
+    await volunteer.save();
+
+    res.status(200).json({
+      message: "Volunteer status updated successfully.",
+      volunteer,
+    });
+
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+// Add a new volunteer
 async function addVolunteer(req, res) {
   try {
     const { name, contact, user_id, eventId, eventTitle } = req.body;
 
     if (!name || !contact || !user_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing required fields."
-      });
+      return res.status(400).json({ success: false, message: "Missing required fields." });
     }
 
-    // Build query safely
-    const duplicateQuery = {
-      user_id,
+    // Check if user has already volunteered/registered for this event
+    const existingVolunteer = await VolunteerModel.findOne({
+      user_id: user_id,
+      event_id: eventId || null,
       status: { $ne: "cancelled" }
-    };
-
-    if (eventId) {
-      duplicateQuery.event_id = eventId;
-    } else {
-      duplicateQuery.event_id = null;
-    }
-
-    const existingVolunteer = await VolunteerModel.findOne(duplicateQuery);
+    });
 
     if (existingVolunteer) {
-      return res.status(400).json({
-        success: false,
-        message: eventId
-          ? "You have already volunteered/registered for this event."
-          : "You have already signed up as a volunteer."
+      return res.status(400).json({ 
+        success: false, 
+        message: eventId 
+          ? "You have already volunteered/registered for this event." 
+          : "You have already signed up as a volunteer." 
       });
     }
 
     const newVolunteer = new VolunteerModel({
-      name: name.trim(),
+      name,
       contact,
       user_id,
-      event_id: eventId || null,
-      eventTitle: eventTitle || "General Volunteer",
+      event_id: eventId || null,     
+      eventTitle: eventTitle || 'General Volunteer',
     });
 
     await newVolunteer.save();
 
-    // ---- ADMIN NOTIFICATION (SAFE) ----
+    // Notify all admins about the new volunteer
     try {
-      let userName = name.trim();
-
-      const user = await UserModel.findOne({
-        uid: user_id,
-        is_deleted: false
-      });
-
-      if (user) {
-        userName = `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim();
+      // Get user information if user_id is provided
+      let userName = name;
+      if (user_id) {
+        const user = await UserModel.findOne({ uid: user_id, is_deleted: false });
+        if (user) {
+          userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        }
       }
-
+      
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
-      const adminIds = admins.map(a => a.uid);
-
-      if (adminIds.length) {
-        const eventInfo = eventId ? ` for ${eventTitle}` : "";
-
+      const adminIds = admins.map((admin) => admin.uid);
+      if (adminIds.length > 0) {
+        const eventInfo = eventTitle && eventTitle !== 'General Volunteer' 
+          ? ` for ${eventTitle}` 
+          : '';
+        
         await notifyAllAdmins(
           adminIds,
           "volunteer",
@@ -126,32 +148,25 @@ async function addVolunteer(req, res) {
             action: "VolunteersList",
             metadata: {
               volunteer_id: newVolunteer._id.toString(),
-              user_id,
+              user_id: user_id || null,
               user_name: userName,
-              event_title: eventTitle || "General Volunteer",
+              event_title: eventTitle || 'General Volunteer',
             },
             priority: "medium",
           }
         );
       }
     } catch (notificationError) {
-      console.error("Notification error:", notificationError);
+      console.error("Error sending admin notifications for volunteer:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
-    return res.status(200).json({
-      success: true,
-      volunteer: newVolunteer
-    });
-
+    res.status(200).json({ success: true, volunteer: newVolunteer });
   } catch (err) {
-    console.error("Add volunteer error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error. Please try again."
-    });
+    console.error(err);
+    res.status(500).json({ success: false, message: "Server error. Please try again." });
   }
 }
-
 
 async function getAllVolunteers(req, res) {
   try {
@@ -192,29 +207,69 @@ async function getAllVolunteers(req, res) {
   }
 }
 
-
-async function addVolunteerWeb(req, res){
-  try{
-    const {user_id, name, contact, eventId, eventTitle, registration_type} = req.body
-
-    const newVolunteer = new VolunteerModel({
-      name: name.trim(),
+async function addVolunteerWeb(req, res) {
+  try {
+    const {
+      user_id,
+      name,
       contact,
+      eventId,
+      eventTitle,
+      registration_type
+    } = req.body;
+
+    // 1️⃣ Validate required fields
+    if (!name || !contact || !user_id || !registration_type) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields."
+      });
+    }
+
+    // 2️⃣ Prevent duplicate registration
+    const existingVolunteer = await VolunteerModel.findOne({
+      user_id,
+      event_id: eventId || null,
+      status: { $ne: "cancelled" }
+    });
+
+    if (existingVolunteer) {
+      return res.status(400).json({
+        success: false,
+        message: eventId
+          ? "You have already registered for this event."
+          : "You have already signed up as a volunteer."
+      });
+    }
+
+    // 3️⃣ Create volunteer
+    const newVolunteer = new VolunteerModel({
+      name: name,
+      contact: contact,
       user_id,
       event_id: eventId || null,
       eventTitle: eventTitle || "General Volunteer",
-      registration_type
+      registration_type,
     });
 
     await newVolunteer.save();
 
+    // 4️⃣ Send response (THIS WAS MISSING)
+    return res.status(201).json({
+      success: true,
+      message: "Volunteer registration successful.",
+      volunteer: newVolunteer
+    });
 
-  }
-  catch(err){
-    console.log(err);
-    
+  } catch (err) {
+    console.error("addVolunteerWeb error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again."
+    });
   }
 }
+
 
 module.exports = { 
   getEventVolunteers, 

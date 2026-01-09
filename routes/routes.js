@@ -43,7 +43,6 @@ router.post("/checkEmail", UserController.checkEmailExists)
 router.post("/checkContact", UserController.checkContactExists)
 router.put("/updateUser", UserController.updateUser)
 router.post("/addVolunteer", UserController.addVolunteer)
-router.post("/addVolunteerWeb", UserController.addVolunteerWeb)
 router.put("/updateUserRole", UserController.updateUserRole)
 router.put("/updateUserStatus", UserController.updateUserStatus)
 router.put("/archiveUser", UserController.archiveUser)
@@ -191,6 +190,7 @@ router.post("/getEventVolunteers", VolunteerController.getEventVolunteers);
 router.post("/getUserVolunteers", VolunteerController.getUserVolunteers);
 router.put("/updateVolunteerStatus", VolunteerController.updateVolunteerStatus);
 router.post('/addVolunteer', VolunteerController.addVolunteer);
+router.post("/addVolunteerWeb", VolunteerController.addVolunteerWeb)
 router.post("/getAllVolunteers", VolunteerController.getAllVolunteers);
 
 // User can view events
