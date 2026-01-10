@@ -249,14 +249,14 @@ async function addVolunteerWeb(req, res) {
         message: "You have already registered for this event."
       });
     }
-    else{
+    if(existingVolunteer.registration_type === "volunteer"){
       return res.status(400).json({
         success: false,
         message: "You have already signed up as a volunteer."
       });
     }
 
-    // 3️⃣ Create volunteer
+
     const newVolunteer = new VolunteerModel({
       name: name,
       contact: contact,
