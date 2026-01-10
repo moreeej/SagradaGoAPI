@@ -217,28 +217,42 @@ async function addVolunteerWeb(req, res) {
       eventTitle,
       registration_type
     } = req.body;
+    
+    console.log("id", user_id);
+    console.log("name", name);
+    console.log("contact", contact);
+    console.log("event", user_id);
+
 
     // 1️⃣ Validate required fields
     if (!name || !contact || !user_id || !registration_type) {
+      
+      
       return res.status(400).json({
         success: false,
         message: "Missing required fields."
       });
     }
 
-    // 2️⃣ Prevent duplicate registration
+
     const existingVolunteer = await VolunteerModel.findOne({
       user_id,
       event_id: eventId || null,
       status: { $ne: "cancelled" }
     });
 
-    if (existingVolunteer) {
+    
+
+    if (existingVolunteer.registration_type === "participant") {
       return res.status(400).json({
         success: false,
-        message: eventId
-          ? "You have already registered for this event."
-          : "You have already signed up as a volunteer."
+        message: "You have already registered for this event."
+      });
+    }
+    else{
+      return res.status(400).json({
+        success: false,
+        message: "You have already signed up as a volunteer."
       });
     }
 
