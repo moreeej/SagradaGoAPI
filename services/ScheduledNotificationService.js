@@ -280,37 +280,44 @@ const scheduleTodayBookingNotifications = async () => {
 const scheduleDailyNotifications = () => {
   console.log('⏰ Setting up daily notification schedule...');
   
+  // Run immediate check for today's bookings on server startup
+  console.log('🔔 Running immediate check for today\'s bookings...');
+  scheduleTodayBookingNotifications().catch(err => {
+    console.error('❌ Error in immediate booking check:', err);
+  });
+  
   // Calculate time until next 8:00 AM
   const now = new Date();
-  const tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(8, 0, 0, 0);
+  const next8AM = new Date(now);
+  next8AM.setHours(8, 0, 0, 0);
   
-  const timeUntilTomorrow = tomorrow.getTime() - now.getTime();
+  // If it's already past 8 AM today, schedule for 8 AM tomorrow
+  if (next8AM.getTime() <= now.getTime()) {
+    next8AM.setDate(next8AM.getDate() + 1);
+  }
   
-  console.log(`⏰ First notification check scheduled for: ${tomorrow.toLocaleString()}`);
-  console.log(`⏰ Time until first check: ${Math.round(timeUntilTomorrow / (1000 * 60 * 60))} hours`);
+  const timeUntilNext8AM = next8AM.getTime() - now.getTime();
   
-  // Run immediately for testing on first startup (optional - comment out for production)
-  // scheduleTodayBookingNotifications();
+  console.log(`⏰ Next notification check scheduled for: ${next8AM.toLocaleString()}`);
+  console.log(`⏰ Time until next check: ${Math.round(timeUntilNext8AM / (1000 * 60 * 60))} hours`);
   
-  // Schedule first run at 8:00 AM tomorrow
+  // Schedule first run at next 8:00 AM
   setTimeout(() => {
-    console.log('⏰ Running first scheduled notification check...');
+    console.log('⏰ Running scheduled notification check at 8:00 AM...');
     scheduleTodayBookingNotifications().catch(err => {
-      console.error('❌ Error in first scheduled check:', err);
+      console.error('❌ Error in scheduled check:', err);
     });
     
-    // Then run every 24 hours
+    // Then run every 24 hours at 8:00 AM
     setInterval(() => {
-      console.log('⏰ Running daily scheduled notification check...');
+      console.log('⏰ Running daily scheduled notification check at 8:00 AM...');
       scheduleTodayBookingNotifications().catch(err => {
         console.error('❌ Error in daily scheduled check:', err);
       });
     }, 24 * 60 * 60 * 1000);
     
-    console.log('⏰ Daily notifications scheduled to run every 24 hours');
-  }, timeUntilTomorrow);
+    console.log('⏰ Daily notifications scheduled to run every 24 hours at 8:00 AM');
+  }, timeUntilNext8AM);
 };
 
 module.exports = {
