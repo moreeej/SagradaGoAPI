@@ -217,49 +217,44 @@ async function addVolunteerWeb(req, res) {
       eventTitle,
       registration_type
     } = req.body;
-    
-    console.log("id", user_id);
-    console.log("name", name);
-    console.log("contact", contact);
-    console.log("event", user_id);
 
-
-    // 1️⃣ Validate required fields
+    // ✅ Validate required fields
     if (!name || !contact || !user_id || !registration_type) {
-      
-      
       return res.status(400).json({
         success: false,
         message: "Missing required fields."
       });
     }
 
-
-    const existingVolunteer = await VolunteerModel.findOne({
+    // ✅ Build query safely
+    const query = {
       user_id,
-      event_id: eventId || null,
       status: { $ne: "cancelled" }
-    });
+    };
+    if (eventId) query.event_id = eventId;
 
-    
+    const existingVolunteer = await VolunteerModel.findOne(query);
 
-    if (existingVolunteer.registration_type === "participant") {
-      return res.status(400).json({
-        success: false,
-        message: "You have already registered for this event."
-      });
+    // ✅ Null-safe checks
+    if (existingVolunteer) {
+      if (existingVolunteer.registration_type === "participant") {
+        return res.status(400).json({
+          success: false,
+          message: "You have already registered for this event."
+        });
+      }
+
+      if (existingVolunteer.registration_type === "volunteer") {
+        return res.status(400).json({
+          success: false,
+          message: "You have already signed up as a volunteer."
+        });
+      }
     }
-    if(existingVolunteer.registration_type === "volunteer"){
-      return res.status(400).json({
-        success: false,
-        message: "You have already signed up as a volunteer."
-      });
-    }
-
 
     const newVolunteer = new VolunteerModel({
-      name: name,
-      contact: contact,
+      name,
+      contact,
       user_id,
       event_id: eventId || null,
       eventTitle: eventTitle || "General Volunteer",
@@ -268,7 +263,42 @@ async function addVolunteerWeb(req, res) {
 
     await newVolunteer.save();
 
-    // 4️⃣ Send response (THIS WAS MISSING)
+    // ✅ Notifications BEFORE response
+    try {
+      let userName = name;
+
+      const user = await UserModel.findOne({ uid: user_id, is_deleted: false });
+      if (user) {
+        userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+      }
+
+      const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+      const adminIds = admins.map(a => a.uid);
+
+      if (adminIds.length) {
+        const eventInfo = eventTitle ? ` for ${eventTitle}` : '';
+        await notifyAllAdmins(
+          adminIds,
+          "volunteer",
+          "New Volunteer Sign-up",
+          `${userName} has signed up to volunteer${eventInfo}.`,
+          {
+            action: "VolunteersList",
+            metadata: {
+              volunteer_id: newVolunteer._id.toString(),
+              user_id,
+              user_name: userName,
+              event_title: eventTitle || "General Volunteer",
+            },
+            priority: "medium",
+          }
+        );
+      }
+    } catch (notificationError) {
+      console.error("Notification error:", notificationError);
+    }
+
+    // ✅ Final response
     return res.status(201).json({
       success: true,
       message: "Volunteer registration successful.",
@@ -283,6 +313,7 @@ async function addVolunteerWeb(req, res) {
     });
   }
 }
+
 
 
 module.exports = { 

@@ -316,6 +316,10 @@ async function getDonationStats(req, res) {
   }
 }
 
+async function createDonationWeb(){
+  
+}
+
 module.exports = {
   createDonation,
   getUserDonations,
