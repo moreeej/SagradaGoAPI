@@ -292,7 +292,7 @@ async function getAIResponse(userMessage, userId) {
     // Fallback to SDK if REST API fails
     // Check if Gemini is properly initialized
     if (!genAI) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY;
       if (!apiKey) {
         return "I apologize, but the AI service is not properly configured. Please contact the parish office for assistance.";
       }
