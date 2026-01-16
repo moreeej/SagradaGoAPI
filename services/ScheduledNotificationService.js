@@ -214,7 +214,6 @@ const scheduleTodayBookingNotifications = async () => {
       }
     }
     
-    // Send notifications to priests
     for (const [priestId, priestData] of Object.entries(priestBookings)) {
       try {
         const bookingCount = priestData.bookings.length;
