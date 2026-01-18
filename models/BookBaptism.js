@@ -7,7 +7,7 @@ const BaptismSchema = new mongoose.Schema(
       required: true 
 
     },
-    full_name: { 
+    fullname: { 
       type: String, 
       default: '' 
     },

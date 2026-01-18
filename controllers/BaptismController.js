@@ -1120,6 +1120,8 @@ async function AddBaptismalWeb(req, res) {
       godparent_confirmation,
       baptismal_seminar,
     } = req.body;
+    console.log("fullname", fullname);
+    
 
     // CREATE NEW DOCUMENT
     const newBaptismal = new BaptismModel({
