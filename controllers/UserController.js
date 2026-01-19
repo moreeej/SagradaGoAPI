@@ -81,7 +81,7 @@ async function createUser(req, res) {
       uid: newUser.uid,
       email: newUser.email,
       first_name: newUser.first_name,
-      middle_name: newUser.middle_name,
+      middle_name: newUser.middle_name || "",
       last_name: newUser.last_name,
       // gender: newUser.gender,
       contact_number: newUser.contact_number,
