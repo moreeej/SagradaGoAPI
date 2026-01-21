@@ -166,19 +166,55 @@ async function findUser(req, res) {
 
 async function login(req, res) {
   try {
-    const { email, password } = req.body;
+    const { email, password, firebaseToken } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required." });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
     }
 
-    const user = await UserModel.findOne({ email, is_deleted: false });
+    if (!password && !firebaseToken) {
+      return res.status(400).json({ message: "Password or Firebase token is required." });
+    }
+
+    const user = await UserModel.findOne({ email: email.trim().toLowerCase(), is_deleted: false });
 
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    let isPasswordValid = false;
+
+    // If Firebase token is provided, verify with Firebase Admin
+    if (firebaseToken) {
+      try {
+        const admin = require("../config/firebaseAdmin");
+        const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+        
+        // Verify the token belongs to the correct user
+        if (decodedToken.email !== email.trim().toLowerCase()) {
+          return res.status(401).json({ message: "Invalid email or password." });
+        }
+        
+        // Firebase Auth verification succeeded
+        isPasswordValid = true;
+        
+        // Note: We can't sync the password hash from Firebase to MongoDB
+        // because Firebase doesn't expose password hashes. The password in MongoDB
+        // will remain out of sync, but login will work via Firebase token.
+        
+      } catch (firebaseError) {
+        console.error("Firebase token verification failed:", firebaseError);
+        // If Firebase verification fails, fall back to password check
+        if (password) {
+          isPasswordValid = await bcrypt.compare(password, user.password);
+        } else {
+          return res.status(401).json({ message: "Invalid email or password." });
+        }
+      }
+    } else {
+      // Use traditional password verification
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    }
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password." });
