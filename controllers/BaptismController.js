@@ -345,6 +345,7 @@ const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Generate a unique transaction ID
@@ -931,6 +932,32 @@ async function updateBaptismStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for confirmed baptism booking
+          try {
+            const userEmail = baptism.email;
+            const userName = `${baptism.child_first_name || 'Child'} (Parent/Guardian: ${baptism.parent_name || 'Parent'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingApprovalEmail(userName, "Baptism", {
+                transaction_id: baptism.transaction_id,
+                date: baptism.date,
+                time: baptism.time,
+                priest_name: baptism.priest_name
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Baptism Booking Approved - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Baptism approval email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for baptism approval notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending baptism approval email:", emailError);
+          }
         } else {
           console.log(
             `Skipping notification - invalid userId: ${userIdToNotify}`
@@ -1014,6 +1041,31 @@ async function updateBaptismStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected baptism booking
+          try {
+            const userEmail = baptism.email;
+            const userName = `${baptism.child_first_name || 'Child'} (Parent/Guardian: ${baptism.parent_name || 'Parent'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "Baptism", {
+                transaction_id: baptism.transaction_id,
+                date: baptism.date,
+                time: baptism.time
+              }, baptism.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Baptism Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Baptism rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for baptism rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending baptism rejection email:", emailError);
+          }
         } else {
           console.log(
             `Skipping cancellation notification - invalid userId: ${userIdToNotify}`

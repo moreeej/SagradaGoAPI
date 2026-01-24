@@ -1,7 +1,8 @@
 const VolunteerModel = require("../models/Volunteer");
 const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
-const { notifyAllAdmins } = require("../utils/NotificationHelper");
+const { notifyAllAdmins, notifyUser } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 // Get all volunteers for a specific event
 async function getEventVolunteers(req, res) {
@@ -72,8 +73,122 @@ async function updateVolunteerStatus(req, res) {
       return res.status(404).json({ message: "Volunteer not found." });
     }
 
+    const oldStatus = volunteer.status;
     volunteer.status = status;
     await volunteer.save();
+
+    // Send notifications and emails only if status actually changed
+    if (oldStatus !== status && (status === "confirmed" || status === "cancelled")) {
+      try {
+        // Get user information for email
+        let user = null;
+        let userEmail = null;
+        let userName = volunteer.name;
+
+        if (volunteer.user_id) {
+          user = await UserModel.findOne({ uid: volunteer.user_id, is_deleted: false });
+          if (user) {
+            userEmail = user.email;
+            userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+          }
+        }
+
+        if (status === "confirmed") {
+          // Send push notification to user
+          if (volunteer.user_id) {
+            try {
+              await notifyUser(
+                volunteer.user_id,
+                "volunteer_status",
+                "Volunteer Application Approved",
+                `Your ${volunteer.registration_type === "participant" ? "event registration" : "volunteer application"} for ${volunteer.eventTitle || "General Volunteer"} has been approved!`,
+                {
+                  action: "VolunteerHistoryScreen",
+                  metadata: {
+                    volunteer_id: volunteer._id.toString(),
+                    event_title: volunteer.eventTitle,
+                    status: "approved",
+                  },
+                  priority: "high",
+                }
+              );
+            } catch (pushError) {
+              console.error("Error sending volunteer approval push notification:", pushError);
+            }
+          }
+
+          // Send email notification
+          if (userEmail) {
+            try {
+              const emailHtml = EmailService.generateVolunteerApprovalEmail(userName, {
+                eventTitle: volunteer.eventTitle,
+                registration_type: volunteer.registration_type
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                `${volunteer.registration_type === "participant" ? "Event Registration" : "Volunteer Application"} Approved - Sagrada Familia Parish`,
+                emailHtml
+              );
+              console.log(`Volunteer approval email sent to: ${userEmail}`);
+            } catch (emailError) {
+              console.error("Error sending volunteer approval email:", emailError);
+            }
+          } else {
+            console.log("No email address found for volunteer approval notification");
+          }
+
+        } else if (status === "cancelled") {
+          // Send push notification to user
+          if (volunteer.user_id) {
+            try {
+              await notifyUser(
+                volunteer.user_id,
+                "volunteer_status",
+                "Volunteer Application Update",
+                `Your ${volunteer.registration_type === "participant" ? "event registration" : "volunteer application"} for ${volunteer.eventTitle || "General Volunteer"} has been declined. Please contact the parish for more information.`,
+                {
+                  action: "VolunteerHistoryScreen",
+                  metadata: {
+                    volunteer_id: volunteer._id.toString(),
+                    event_title: volunteer.eventTitle,
+                    status: "declined",
+                  },
+                  priority: "high",
+                }
+              );
+            } catch (pushError) {
+              console.error("Error sending volunteer rejection push notification:", pushError);
+            }
+          }
+
+          // Send email notification
+          if (userEmail) {
+            try {
+              const emailHtml = EmailService.generateVolunteerRejectionEmail(userName, {
+                eventTitle: volunteer.eventTitle,
+                registration_type: volunteer.registration_type
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                `${volunteer.registration_type === "participant" ? "Event Registration" : "Volunteer Application"} Update - Sagrada Familia Parish`,
+                emailHtml
+              );
+              console.log(`Volunteer rejection email sent to: ${userEmail}`);
+            } catch (emailError) {
+              console.error("Error sending volunteer rejection email:", emailError);
+            }
+          } else {
+            console.log("No email address found for volunteer rejection notification");
+          }
+        }
+
+      } catch (notificationError) {
+        console.error("Error sending volunteer notifications:", notificationError);
+        // Don't fail the request if notifications fail
+      }
+    }
 
     res.status(200).json({
       message: "Volunteer status updated successfully.",

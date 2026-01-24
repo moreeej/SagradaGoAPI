@@ -322,6 +322,7 @@ const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Generate a unique transaction ID
@@ -626,6 +627,32 @@ async function updateBurialStatus(req, res) {
               }
             );
             console.log(`[BURIAL] ✅ notifyUser call completed for user: ${userIdToNotify}`);
+
+            // Send email notification for confirmed burial booking
+            try {
+              const userEmail = burial.email;
+              const userName = `${burial.deceased_first_name || 'Deceased'} (Contact: ${burial.contact_person || 'Family'})`;
+              
+              if (userEmail) {
+                const emailHtml = EmailService.generateBookingApprovalEmail(userName, "Burial", {
+                  transaction_id: burial.transaction_id,
+                  date: burial.date,
+                  time: burial.time,
+                  priest_name: burial.priest_name
+                });
+                
+                await EmailService.sendEmail(
+                  userEmail,
+                  "Burial Booking Approved - Sagrada Familia Parish",
+                  emailHtml
+                );
+                console.log(`Burial approval email sent to: ${userEmail}`);
+              } else {
+                console.log("No email address found for burial approval notification");
+              }
+            } catch (emailError) {
+              console.error("Error sending burial approval email:", emailError);
+            }
           } catch (notifyError) {
             console.error(`[BURIAL] ❌ Error calling notifyUser:`, notifyError);
             console.error(`[BURIAL] Error message:`, notifyError.message);
@@ -699,6 +726,31 @@ async function updateBurialStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected burial booking
+          try {
+            const userEmail = burial.email;
+            const userName = `${burial.deceased_first_name || 'Deceased'} (Contact: ${burial.contact_person || 'Family'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "Burial", {
+                transaction_id: burial.transaction_id,
+                date: burial.date,
+                time: burial.time
+              }, burial.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Burial Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Burial rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for burial rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending burial rejection email:", emailError);
+          }
         } else {
           console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }

@@ -4,6 +4,7 @@ const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Generate a unique transaction ID
@@ -384,6 +385,32 @@ async function updateWeddingStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for confirmed booking
+          try {
+            const userEmail = wedding.email;
+            const userName = `${wedding.groom_first_name || 'Groom'} & ${wedding.bride_first_name || 'Bride'}`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingApprovalEmail(userName, "Wedding", {
+                transaction_id: wedding.transaction_id,
+                date: wedding.date,
+                time: wedding.time,
+                priest_name: wedding.priest_name
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Wedding Booking Approved - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Wedding approval email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for wedding approval notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending wedding approval email:", emailError);
+          }
         } else {
           console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
@@ -452,6 +479,31 @@ async function updateWeddingStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected booking
+          try {
+            const userEmail = wedding.email;
+            const userName = `${wedding.groom_first_name || 'Groom'} & ${wedding.bride_first_name || 'Bride'}`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "Wedding", {
+                transaction_id: wedding.transaction_id,
+                date: wedding.date,
+                time: wedding.time
+              }, wedding.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Wedding Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Wedding rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for wedding rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending wedding rejection email:", emailError);
+          }
         } else {
           console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }

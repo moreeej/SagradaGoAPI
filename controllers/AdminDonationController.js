@@ -1,5 +1,6 @@
 const DonationModel = require("../models/Donation");
 const UserModel = require("../models/User");
+const EmailService = require("../services/EmailService");
 
 /**
  * Get all donations (for admin)
@@ -182,11 +183,16 @@ async function updateDonationStatus(req, res) {
       }
     }
 
-    // Send push notification to user
+    // Send push notification and email to user
     try {
       const { notifyUser } = require("../utils/NotificationHelper");
       
+      // Get user email for sending email notification
+      const userEmail = user?.email || donation.user_email || donation.email;
+      const userName = user ? `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim() : (donation.user_name || donation.name || 'Valued Donor');
+      
       if (status === "confirmed") {
+        // Send push notification
         await notifyUser(
           donation.user_id,
           "donation_status",
@@ -202,7 +208,31 @@ async function updateDonationStatus(req, res) {
             priority: "high",
           }
         );
+
+        // Send email notification
+        if (userEmail) {
+          try {
+            const emailHtml = EmailService.generateDonationApprovalEmail(userName, {
+              amount: donation.amount,
+              paymentMethod: donation.paymentMethod,
+              intercession: donation.intercession
+            });
+            
+            await EmailService.sendEmail(
+              userEmail,
+              "Donation Approved - Sagrada Familia Parish",
+              emailHtml
+            );
+            console.log(`Donation approval email sent to: ${userEmail}`);
+          } catch (emailError) {
+            console.error("Error sending donation approval email:", emailError);
+          }
+        } else {
+          console.log("No email address found for donation approval notification");
+        }
+
       } else if (status === "cancelled") {
+        // Send push notification
         await notifyUser(
           donation.user_id,
           "donation_status",
@@ -218,6 +248,27 @@ async function updateDonationStatus(req, res) {
             priority: "high",
           }
         );
+
+        // Send email notification
+        if (userEmail) {
+          try {
+            const emailHtml = EmailService.generateDonationRejectionEmail(userName, {
+              amount: donation.amount,
+              paymentMethod: donation.paymentMethod
+            });
+            
+            await EmailService.sendEmail(
+              userEmail,
+              "Donation Status Update - Sagrada Familia Parish",
+              emailHtml
+            );
+            console.log(`Donation rejection email sent to: ${userEmail}`);
+          } catch (emailError) {
+            console.error("Error sending donation rejection email:", emailError);
+          }
+        } else {
+          console.log("No email address found for donation rejection notification");
+        }
       }
     } catch (notificationError) {
       console.error("Error sending donation notification:", notificationError);

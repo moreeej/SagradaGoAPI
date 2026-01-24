@@ -21,6 +21,7 @@
     "firebase-admin": "^13.6.0",
     "mongoose": "^8.19.3",
     "multer": "^2.0.2",
+    "nodemailer": "^6.9.8",
     "socket.io": "^4.8.1"
   },
   "keywords": [],
