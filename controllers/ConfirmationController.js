@@ -3,6 +3,7 @@ const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Generate a unique transaction ID
@@ -283,6 +284,32 @@ async function updateConfirmationStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for confirmed confirmation booking
+          try {
+            const userEmail = confirmation.email;
+            const userName = `${confirmation.child_first_name || 'Child'} (Parent/Guardian: ${confirmation.parent_name || 'Parent'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingApprovalEmail(userName, "Confirmation", {
+                transaction_id: confirmation.transaction_id,
+                date: confirmation.date,
+                time: confirmation.time,
+                priest_name: confirmation.priest_name
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Confirmation Booking Approved - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Confirmation approval email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for confirmation approval notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending confirmation approval email:", emailError);
+          }
         } else {
           console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
@@ -351,6 +378,31 @@ async function updateConfirmationStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected confirmation booking
+          try {
+            const userEmail = confirmation.email;
+            const userName = `${confirmation.child_first_name || 'Child'} (Parent/Guardian: ${confirmation.parent_name || 'Parent'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "Confirmation", {
+                transaction_id: confirmation.transaction_id,
+                date: confirmation.date,
+                time: confirmation.time
+              }, confirmation.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Confirmation Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Confirmation rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for confirmation rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending confirmation rejection email:", emailError);
+          }
         } else {
           console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }

@@ -2,6 +2,7 @@ const ConfessionModel = require("../models/BookConfession");
 const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Normalize time to HH:MM format
@@ -220,6 +221,32 @@ const updateConfessionStatus = async (req, res) => {
             console.log(`[CONFESSION] notifyUser promise created, awaiting...`);
             await notifyPromise;
             console.log(`[CONFESSION] ✅ notifyUser call completed`);
+
+            // Send email notification for confirmed confession booking
+            try {
+              const userEmail = booking.email;
+              const userName = booking.name || 'Valued Parishioner';
+              
+              if (userEmail) {
+                const emailHtml = EmailService.generateBookingApprovalEmail(userName, "Confession", {
+                  transaction_id: booking.transaction_id,
+                  date: booking.date,
+                  time: booking.time,
+                  priest_name: booking.priest_name
+                });
+                
+                await EmailService.sendEmail(
+                  userEmail,
+                  "Confession Booking Approved - Sagrada Familia Parish",
+                  emailHtml
+                );
+                console.log(`Confession approval email sent to: ${userEmail}`);
+              } else {
+                console.log("No email address found for confession approval notification");
+              }
+            } catch (emailError) {
+              console.error("Error sending confession approval email:", emailError);
+            }
           } catch (notifyError) {
             console.error(`[CONFESSION] ❌ Error in notifyUser:`, notifyError);
             console.error(`[CONFESSION] Error message:`, notifyError.message);
@@ -295,6 +322,31 @@ const updateConfessionStatus = async (req, res) => {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected confession booking
+          try {
+            const userEmail = booking.email;
+            const userName = booking.name || 'Valued Parishioner';
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "Confession", {
+                transaction_id: booking.transaction_id,
+                date: booking.date,
+                time: booking.time
+              }, booking.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Confession Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Confession rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for confession rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending confession rejection email:", emailError);
+          }
         } else {
           console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }

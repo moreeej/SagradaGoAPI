@@ -3,6 +3,7 @@ const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Generate a unique transaction ID
@@ -394,6 +395,32 @@ async function updateCommunionStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for confirmed communion booking
+          try {
+            const userEmail = communion.email;
+            const userName = `${communion.child_first_name || 'Child'} (Parent/Guardian: ${communion.parent_name || 'Parent'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingApprovalEmail(userName, "First Communion", {
+                transaction_id: communion.transaction_id,
+                date: communion.date,
+                time: communion.time,
+                priest_name: communion.priest_name
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "First Communion Booking Approved - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Communion approval email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for communion approval notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending communion approval email:", emailError);
+          }
         } else {
           console.log(
             `Skipping notification - invalid userId: ${userIdToNotify}`
@@ -477,6 +504,31 @@ async function updateCommunionStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected communion booking
+          try {
+            const userEmail = communion.email;
+            const userName = `${communion.child_first_name || 'Child'} (Parent/Guardian: ${communion.parent_name || 'Parent'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "First Communion", {
+                transaction_id: communion.transaction_id,
+                date: communion.date,
+                time: communion.time
+              }, communion.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "First Communion Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Communion rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for communion rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending communion rejection email:", emailError);
+          }
         } else {
           console.log(
             `Skipping cancellation notification - invalid userId: ${userIdToNotify}`

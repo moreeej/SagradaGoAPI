@@ -3,6 +3,7 @@ const UserModel = require("../models/User");
 const AdminModel = require("../models/Admin");
 const supabase = require("../config/supabaseClient");
 const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
+const EmailService = require("../services/EmailService");
 
 /**
  * Generate a unique transaction ID
@@ -392,6 +393,32 @@ async function updateAnointingStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for confirmed anointing booking
+          try {
+            const userEmail = anointing.email;
+            const userName = `${anointing.patient_first_name || 'Patient'} (Contact: ${anointing.contact_person || 'Family'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingApprovalEmail(userName, "Anointing of the Sick", {
+                transaction_id: anointing.transaction_id,
+                date: anointing.date,
+                time: anointing.time,
+                priest_name: anointing.priest_name
+              });
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Anointing of the Sick Booking Approved - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Anointing approval email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for anointing approval notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending anointing approval email:", emailError);
+          }
         } else {
           console.log(`Skipping notification - invalid userId: ${userIdToNotify}`);
         }
@@ -460,6 +487,31 @@ async function updateAnointingStatus(req, res) {
               priority: "high",
             }
           );
+
+          // Send email notification for rejected anointing booking
+          try {
+            const userEmail = anointing.email;
+            const userName = `${anointing.patient_first_name || 'Patient'} (Contact: ${anointing.contact_person || 'Family'})`;
+            
+            if (userEmail) {
+              const emailHtml = EmailService.generateBookingRejectionEmail(userName, "Anointing of the Sick", {
+                transaction_id: anointing.transaction_id,
+                date: anointing.date,
+                time: anointing.time
+              }, anointing.admin_comment);
+              
+              await EmailService.sendEmail(
+                userEmail,
+                "Anointing of the Sick Booking Update - Sagrada Familia Parish",
+                emailHtml
+              );
+              console.log(`Anointing rejection email sent to: ${userEmail}`);
+            } else {
+              console.log("No email address found for anointing rejection notification");
+            }
+          } catch (emailError) {
+            console.error("Error sending anointing rejection email:", emailError);
+          }
         } else {
           console.log(`Skipping cancellation notification - invalid userId: ${userIdToNotify}`);
         }
