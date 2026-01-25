@@ -1,13 +1,34 @@
-const nodemailer = require("nodemailer");
+let nodemailer;
+try {
+  nodemailer = require("nodemailer");
+} catch (err) {
+  console.error("Nodemailer not found. Please run: npm install nodemailer");
+  nodemailer = null;
+}
 
 class EmailService {
   constructor() {
     this.transporter = null;
+    this.isInitialized = false;
     this.initializeTransporter();
   }
 
   initializeTransporter() {
     try {
+      // Check if nodemailer is available
+      if (!nodemailer || typeof nodemailer.createTransport !== 'function') {
+        console.warn("Nodemailer is not available. Email functionality will be disabled.");
+        console.warn("Please run: npm install nodemailer");
+        return;
+      }
+
+      // Check if SMTP credentials are configured
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.warn("SMTP credentials not configured. Email functionality will be disabled.");
+        console.warn("Please add SMTP_USER and SMTP_PASS to your .env file.");
+        return;
+      }
+
       // Configure email transporter based on environment variables
       const emailConfig = {
         host: process.env.SMTP_HOST || "smtp.gmail.com",
@@ -22,7 +43,8 @@ class EmailService {
         },
       };
 
-      this.transporter = nodemailer.createTransporter(emailConfig);
+      this.transporter = nodemailer.createTransport(emailConfig);
+      this.isInitialized = true;
 
       // Verify connection configuration
       this.transporter.verify((error, success) => {
@@ -39,12 +61,14 @@ class EmailService {
 
   async sendEmail(to, subject, htmlContent, textContent = null) {
     try {
-      if (!this.transporter) {
-        throw new Error("Email transporter not initialized");
+      if (!this.isInitialized || !this.transporter) {
+        console.warn("Email service not initialized. Skipping email send.");
+        return { success: false, error: "Email service not initialized" };
       }
 
       if (!to || !subject || !htmlContent) {
-        throw new Error("Missing required email parameters");
+        console.warn("Missing required email parameters");
+        return { success: false, error: "Missing required email parameters" };
       }
 
       const mailOptions = {
