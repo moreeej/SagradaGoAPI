@@ -7,6 +7,7 @@ const EmailService = require("../services/EmailService");
 /**
  * Normalize time to HH:MM format
  * Handles ISO strings, Date objects, or already formatted HH:MM strings
+ * Note: For ISO strings, we extract time from the string directly to avoid timezone issues
  */
 function normalizeTime(time) {
   if (!time) return '';
@@ -16,29 +17,40 @@ function normalizeTime(time) {
     return time;
   }
   
-  // If it's a Date object or ISO string, extract hours and minutes
-  let dateObj;
-  if (time instanceof Date) {
-    dateObj = time;
-  } else if (typeof time === 'string') {
-    // Try to parse as Date
-    dateObj = new Date(time);
-    if (isNaN(dateObj.getTime())) {
-      // If parsing fails, try to extract HH:MM from string
-      const timeMatch = time.match(/(\d{2}):(\d{2})/);
-      if (timeMatch) {
-        return `${timeMatch[1]}:${timeMatch[2]}`;
-      }
-      return time; // Return as is if we can't parse it
+  // If it's a string, try to extract HH:MM directly first
+  if (typeof time === 'string') {
+    // Check for ISO format (e.g., "2026-01-25T12:30:00.000Z")
+    // Extract the time part from the ISO string directly
+    const isoMatch = time.match(/T(\d{2}):(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}:${isoMatch[2]}`;
     }
-  } else {
-    return String(time);
+    
+    // Try to extract any HH:MM pattern
+    const timeMatch = time.match(/(\d{2}):(\d{2})/);
+    if (timeMatch) {
+      return `${timeMatch[1]}:${timeMatch[2]}`;
+    }
+    
+    // Try to parse as Date if no pattern found
+    const dateObj = new Date(time);
+    if (!isNaN(dateObj.getTime())) {
+      const hours = dateObj.getHours().toString().padStart(2, '0');
+      const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    
+    return time; // Return as is if we can't parse it
   }
   
-  // Format as HH:MM
-  const hours = dateObj.getHours().toString().padStart(2, '0');
-  const minutes = dateObj.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  // If it's a Date object, extract hours and minutes
+  if (time instanceof Date) {
+    const hours = time.getHours().toString().padStart(2, '0');
+    const minutes = time.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  
+  return String(time);
 }
 
 // Create a new Confession booking

@@ -150,7 +150,7 @@
 //     const burialData = {
 //       transaction_id,
 //       date: new Date(date),
-//       time: time.toString(),
+//       time: normalizeTime(time),
 //       attendees: parseInt(attendees),
 //       contact_number: contact_number || user.contact_number,
 //       funeral_mass: funeral_mass || false,
@@ -325,6 +325,30 @@ const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 const EmailService = require("../services/EmailService");
 
 /**
+ * Normalize time to HH:MM format
+ * Handles ISO strings, Date objects, or already formatted HH:MM strings
+ */
+function normalizeTime(time) {
+  if (!time) return '';
+  if (typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)) return time;
+  if (typeof time === 'string') {
+    const isoMatch = time.match(/T(\d{2}):(\d{2})/);
+    if (isoMatch) return `${isoMatch[1]}:${isoMatch[2]}`;
+    const timeMatch = time.match(/(\d{2}):(\d{2})/);
+    if (timeMatch) return `${timeMatch[1]}:${timeMatch[2]}`;
+    const dateObj = new Date(time);
+    if (!isNaN(dateObj.getTime())) {
+      return `${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
+    }
+    return time;
+  }
+  if (time instanceof Date) {
+    return `${time.getHours().toString().padStart(2, '0')}:${time.getMinutes().toString().padStart(2, '0')}`;
+  }
+  return String(time);
+}
+
+/**
  * Generate a unique transaction ID
  */
 function generateTransactionId() {
@@ -425,7 +449,7 @@ async function createBurial(req, res) {
       email: user.email || '',
       transaction_id,
       date: new Date(date),
-      time: time.toString(),
+      time: normalizeTime(time),
       attendees: parseInt(attendees),
       contact_number: contact_number || user.contact_number,
       deceased_name: deceased_name || '',

@@ -6,6 +6,55 @@ const { notifyUser, notifyAllAdmins } = require("../utils/NotificationHelper");
 const EmailService = require("../services/EmailService");
 
 /**
+ * Normalize time to HH:MM format
+ * Handles ISO strings, Date objects, or already formatted HH:MM strings
+ * Note: For ISO strings, we extract time from the string directly to avoid timezone issues
+ */
+function normalizeTime(time) {
+  if (!time) return '';
+  
+  // If already in HH:MM format, return as is
+  if (typeof time === 'string' && /^\d{2}:\d{2}$/.test(time)) {
+    return time;
+  }
+  
+  // If it's a string, try to extract HH:MM directly first
+  if (typeof time === 'string') {
+    // Check for ISO format (e.g., "2026-01-25T12:30:00.000Z")
+    // Extract the time part from the ISO string directly
+    const isoMatch = time.match(/T(\d{2}):(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[1]}:${isoMatch[2]}`;
+    }
+    
+    // Try to extract any HH:MM pattern
+    const timeMatch = time.match(/(\d{2}):(\d{2})/);
+    if (timeMatch) {
+      return `${timeMatch[1]}:${timeMatch[2]}`;
+    }
+    
+    // Try to parse as Date if no pattern found
+    const dateObj = new Date(time);
+    if (!isNaN(dateObj.getTime())) {
+      const hours = dateObj.getHours().toString().padStart(2, '0');
+      const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+    
+    return time; // Return as is if we can't parse it
+  }
+  
+  // If it's a Date object, extract hours and minutes
+  if (time instanceof Date) {
+    const hours = time.getHours().toString().padStart(2, '0');
+    const minutes = time.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+  
+  return String(time);
+}
+
+/**
  * Generate a unique transaction ID
  */
 function generateTransactionId() {
@@ -175,7 +224,7 @@ async function createAnointing(req, res) {
       email: user.email || '',
       transaction_id,
       date: new Date(date),
-      time: time.toString(),
+      time: normalizeTime(time),
       attendees: parseInt(attendees),
       contact_number: contact_number || user.contact_number,
       medical_condition: medical_condition || '',
