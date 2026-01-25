@@ -89,6 +89,7 @@ const UserSchema = new mongoose.Schema(
     residency: {
       type: String,
       enum: ["Permanent", "Floating"],
+      default: "Floating",
     },
     is_active: { 
       type: Boolean, 

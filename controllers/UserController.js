@@ -21,6 +21,7 @@ async function createUser(req, res) {
       previous_parish,
       residency
     } = req.body;
+    
 
     // Validate required fields
     if (!email || !contact_number) {
@@ -74,6 +75,9 @@ async function createUser(req, res) {
       previous_parish: previousParishValue,
       residency: residencyValue
     });
+
+    console.log("newuser", newUser);
+    
 
     await newUser.save();
 
