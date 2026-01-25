@@ -235,6 +235,7 @@ router.get("/chat/getChatByUserId/:userId", ChatController.getChatByUserId);
 router.post("/chat/markAsRead", ChatController.markAsRead);
 router.post("/chat/markAsSeen", ChatController.markAsSeen);
 router.get("/chat/getUnreadCount", ChatController.getUnreadCount);
+router.post("/chat/addMessageWeb", ChatController.addMessageWeb);
 
 // AI Chatbot routes
 router.post("/chat/ai/response", ChatController.getAIResponse);
