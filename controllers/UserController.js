@@ -748,7 +748,6 @@ async function archiveUser(req, res) {
       return res.status(400).json({ message: "User ID is required." });
     }
 
-    // Find the user
     const user = await UserModel.findOne({ uid, is_deleted: false });
 
     if (!user) {
