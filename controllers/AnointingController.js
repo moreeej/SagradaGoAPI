@@ -728,6 +728,76 @@ async function updateAnointing(req, res) {
 
 
 
+
+
+
+async function createAnointingWeb(req, res) {
+  try {
+    console.log("=== Anointing of the Sick Booking Creation Request ===");
+    console.log("req.body:", req.body);
+    console.log("req.files:", req.files ? JSON.stringify(Object.keys(req.files)) : "No files");
+
+  const { uid, full_name, transaction_id, email, date, time, attendees, contact_number, medical_condition, medical_certificate} = req.body;
+
+const anointingData = {
+  uid,
+  full_name,
+  email,
+  transaction_id,
+  date,
+  time,
+  attendees: parseInt(attendees),
+  contact_number,
+  medical_condition: medical_condition || 'N/A',
+  medical_certificate: medical_certificate || '',
+  status: "pending",
+};
+
+    const newAnointing = new AnointingModel(anointingData);
+    await newAnointing.save();
+
+
+    // try {
+    //   const admins = await AdminModel.find({ is_deleted: false }).select("uid");
+    //   const adminIds = admins.map((admin) => admin.uid);
+    //   if (adminIds.length > 0) {
+    //     const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+    //     await notifyAllAdmins(
+    //       adminIds,
+    //       "booking",
+    //       "New Anointing of the Sick Booking",
+    //       `${userName} has submitted a new Anointing of the Sick booking request.`,
+    //       {
+    //         action: "BookingHistoryScreen",
+    //         metadata: {
+    //           booking_id: newAnointing._id.toString(),
+    //           transaction_id: transaction_id,
+    //           user_id: uid,
+    //           user_name: userName,
+    //           sacrament_type: "Anointing of the Sick",
+    //         },
+    //         priority: "high",
+    //       }
+    //     );
+    //   }
+    // } catch (notificationError) {
+    //   console.error("Error sending admin notifications for anointing booking:", notificationError);
+
+    // }
+
+    res.status(201).json({
+      message: "Anointing of the Sick booking created successfully.",
+      anointing: newAnointing,
+      transaction_id,
+    });
+
+  } catch (err) {
+    console.error("Error creating anointing booking:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+
 module.exports = {
   AnointingModel,
   createAnointing,
@@ -736,4 +806,5 @@ module.exports = {
   updateAnointingStatus,
   updateAnointing,
   getAllAnointings,
+  createAnointingWeb
 };
