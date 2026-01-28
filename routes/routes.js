@@ -52,6 +52,7 @@ router.put("/admin/resetUserPassword", UserController.resetUserPassword)
 // Admin routes
 router.post("/createAdmin", AdminController.addAdmin)
 router.post("/findAdmin", AdminController.findAdmin)
+router.post("/updateAdmin", AdminController.updateAdmin)
 
 // Donation routes (user)
 router.post("/createDonation", upload.fields([
