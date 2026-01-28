@@ -26,11 +26,7 @@ const ScheduledNotificationService = require("../services/ScheduledNotificationS
 const upload = require("../middleware/upload");
 const testFCMRoute = require("./testFCM"); 
 
-
-
-
 // Web Routes
-
 router.post("/createWeddingBooking", WeddingController.AddWeddingBookingWeb)
 
 // User routes
