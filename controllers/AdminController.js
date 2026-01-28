@@ -72,4 +72,41 @@ async function findAdmin(req, res) {
   }
 }
 
-module.exports = { addAdmin, findAdmin }
+async function updateAdmin(req, res) {
+  try {
+    const {
+      uid,
+      first_name,
+      middle_name,
+      last_name,
+      contact_number,
+      birthday,
+      email,
+    } = req.body;
+
+    const admin = await AdminModel.findOne({ uid });
+
+    if (!admin) {
+      return res.status(404).json({ message: "Admin not found." });
+    }
+
+    admin.first_name = first_name ?? admin.first_name;
+    admin.middle_name = middle_name ?? admin.middle_name;
+    admin.last_name = last_name ?? admin.last_name;
+    admin.contact_number = contact_number ?? admin.contact_number;
+    admin.birthday = birthday ?? admin.birthday;
+    admin.email = email ?? admin.email;
+
+    await admin.save();
+
+    res.status(200).json({
+      message: "Admin updated successfully.",
+      user: admin,
+    });
+  } catch (err) {
+    console.error("Update admin error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
+  }
+}
+
+module.exports = { addAdmin, findAdmin, updateAdmin }
