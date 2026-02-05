@@ -1,122 +1,123 @@
-const UserModel = require("../models/User");
-const ArchiveUserModel = require("../models/ArchiveUser");
-const VolunteerModel = require("../models/Volunteer");
+const UserModel = require("../models/User")
+const ArchiveUserModel = require("../models/ArchiveUser")
+const VolunteerModel = require("../models/Volunteer")
 
 const bcrypt = require("bcrypt");
 
 async function createUser(req, res) {
   try {
-    let {
-      first_name,
-      middle_name,
-      last_name,
-      contact_number,
-      birthday,
-      email,
+    const { 
+      first_name, 
+      middle_name, 
+      last_name, 
+      // gender, 
+      contact_number, 
+      // civil_status, 
+      birthday, 
+      email, 
       password,
       uid,
       is_priest,
       previous_parish,
-      residency,
+      residency
     } = req.body;
+    
 
-    // 🔹 Normalize & sanitize
-    email = email?.trim().toLowerCase();
-    contact_number = contact_number?.trim();
-    first_name = first_name?.trim();
-    middle_name = middle_name?.trim();
-    last_name = last_name?.trim();
-    previous_parish = previous_parish?.trim();
-
-    // 🔹 Normalize boolean (important!)
-    is_priest = is_priest === true || is_priest === "true";
-
-    // 🔹 Required fields
-    if (!email || !contact_number || !password) {
-      return res.status(400).json({
-        message: "Email, contact number, and password are required.",
-      });
+    // Validate required fields
+    if (!email || !contact_number) {
+      return res.status(400).json({ message: "Email and contact number are required." });
     }
 
-    // 🔹 Check duplicates (soft delete aware)
-    const existingUser = await UserModel.findOne({
-      $or: [{ email }, { contact_number }, { uid }],
-      is_deleted: false,
+    // Check if email already exists
+    const existingEmail = await UserModel.findOne({ 
+      email: email.trim().toLowerCase(),
+      is_deleted: false 
     });
-
-    if (existingUser) {
-      if (existingUser.email === email) {
-        return res.status(409).json({ message: "Email already exists." });
-      }
-      if (existingUser.contact_number === contact_number) {
-        return res
-          .status(409)
-          .json({ message: "Contact number already exists." });
-      }
-      if (existingUser.uid === uid) {
-        return res.status(409).json({ message: "User ID already exists." });
-      }
+    
+    if (existingEmail) {
+      return res.status(409).json({ message: "Email already exists. Please use a different email." });
     }
 
-    // 🔹 Hash password
+    // Check if contact number already exists
+    const existingContact = await UserModel.findOne({ 
+      contact_number: contact_number.trim(),
+      is_deleted: false 
+    });
+    
+    if (existingContact) {
+      return res.status(409).json({ message: "Contact number already exists. Please use a different contact number." });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // 🔹 Residency enum guard
-    const residencyValue =
-      is_priest && ["Permanent", "Floating"].includes(residency)
-        ? residency
-        : undefined;
-
-    // 🔹 Previous parish only for priests
-    const previousParishValue =
-      is_priest && previous_parish ? previous_parish : undefined;
+    
+    // Handle residency field properly - only set if it's a valid enum value
+    // For non-priests, residency should be undefined (not empty string)
+    let residencyValue = undefined;
+    if (residency && (residency === "Permanent" || residency === "Floating")) {
+      residencyValue = residency;
+    }
+    
+    // Only set previous_parish if user is a priest
+    const previousParishValue = (is_priest && previous_parish) ? previous_parish : undefined;
 
     const newUser = new UserModel({
       first_name,
       middle_name,
       last_name,
-      contact_number,
+      // gender,
+      contact_number: contact_number.trim(),
+      // civil_status,
       birthday,
-      email,
+      email: email.trim().toLowerCase(),
       password: hashedPassword,
       uid,
-      is_priest,
+      is_priest: is_priest || false,
       previous_parish: previousParishValue,
-      residency: residencyValue,
+      residency: residencyValue
     });
+
+    console.log("newuser", newUser);
+    
 
     await newUser.save();
 
-    res.status(201).json({
-      message: "User created successfully.",
-      newUser: {
-        uid: newUser.uid,
-        email: newUser.email,
-        first_name: newUser.first_name,
-        middle_name: newUser.middle_name || "",
-        last_name: newUser.last_name,
-        contact_number: newUser.contact_number,
-        birthday: newUser.birthday,
-        is_priest: newUser.is_priest,
-        previous_parish: newUser.previous_parish,
-        residency: newUser.residency,
-        volunteers: [],
-      },
-    });
-  } catch (err) {
-    console.error("Create user error:", err);
+    const newUserData = {
+      uid: newUser.uid,
+      email: newUser.email,
+      first_name: newUser.first_name,
+      middle_name: newUser.middle_name || "",
+      last_name: newUser.last_name,
+      // gender: newUser.gender,
+      contact_number: newUser.contact_number,
+      // civil_status: newUser.civil_status,
+      birthday: newUser.birthday,
+      is_priest: newUser.is_priest,
+      previous_parish: newUser.previous_parish,
+      residency: newUser.residency,
+      volunteers: [] // New users have no volunteers yet
+    };
 
-    // 🔹 Mongo duplicate key fallback
+    res.json({
+      message: "User created successfully.",
+      newUser: newUserData
+    });
+
+  } catch (err) {
+    console.error("Error:", err);
+    
+    // Handle MongoDB duplicate key error
     if (err.code === 11000) {
       const field = Object.keys(err.keyPattern)[0];
-      return res.status(409).json({
-        message: `${field.replace("_", " ")} already exists.`,
-      });
+      if (field === 'email') {
+        return res.status(409).json({ message: "Email already exists. Please use a different email." });
+      } else if (field === 'contact_number') {
+        return res.status(409).json({ message: "Contact number already exists. Please use a different contact number." });
+      } else if (field === 'uid') {
+        return res.status(409).json({ message: "User ID already exists. Please try again." });
+      }
     }
-
-    res.status(500).json({
-      message: "Server error. Please try again later.",
-    });
+    
+    res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
@@ -135,9 +136,8 @@ async function findUser(req, res) {
 
     // Check if account is disabled
     if (user.is_active === false) {
-      return res.status(403).json({
-        message:
-          "Your account has been disabled. Please contact the administrator for assistance.",
+      return res.status(403).json({ 
+        message: "Your account has been disabled. Please contact the administrator for assistance." 
       });
     }
 
@@ -155,9 +155,9 @@ async function findUser(req, res) {
       previous_parish: user.previous_parish,
       residency: user.residency,
       is_active: user.is_active === true, // Return actual boolean value
-      volunteers: userVolunteers || [],
+      volunteers: userVolunteers || []
     };
-
+    
     res.status(200).json({
       message: "User found successfully.",
       user: userData,
@@ -168,166 +168,96 @@ async function findUser(req, res) {
   }
 }
 
-// async function login(req, res) {
-//   try {
-//     const { email, password, firebaseToken } = req.body;
-
-//     if (!email) {
-//       return res.status(400).json({ message: "Email is required." });
-//     }
-
-//     if (!password && !firebaseToken) {
-//       return res
-//         .status(400)
-//         .json({ message: "Password or Firebase token is required." });
-//     }
-
-//     const user = await UserModel.findOne({
-//       email: email.trim().toLowerCase(),
-//       is_deleted: false,
-//     });
-
-//     if (!user) {
-//       return res.status(401).json({ message: "Invalid email or password." });
-//     }
-
-//     let isPasswordValid = false;
-
-//     // If Firebase token is provided, verify with Firebase Admin
-//     if (firebaseToken) {
-//       try {
-//         const admin = require("../config/firebaseAdmin");
-//         const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-
-//         // Verify the token belongs to the correct user
-//         if (decodedToken.email !== email.trim().toLowerCase()) {
-//           return res
-//             .status(401)
-//             .json({ message: "Invalid email or password." });
-//         }
-
-//         // Firebase Auth verification succeeded
-//         isPasswordValid = true;
-
-//         // Note: We can't sync the password hash from Firebase to MongoDB
-//         // because Firebase doesn't expose password hashes. The password in MongoDB
-//         // will remain out of sync, but login will work via Firebase token.
-//       } catch (firebaseError) {
-//         console.error("Firebase token verification failed:", firebaseError);
-//         // If Firebase verification fails, fall back to password check
-//         if (password) {
-//           isPasswordValid = await bcrypt.compare(password, user.password);
-//         } else {
-//           return res
-//             .status(401)
-//             .json({ message: "Invalid email or password." });
-//         }
-//       }
-//     } else {
-//       // Use traditional password verification
-//       isPasswordValid = await bcrypt.compare(password, user.password);
-//     }
-
-//     if (!isPasswordValid) {
-//       return res.status(401).json({ message: "Invalid email or password." });
-//     }
-
-//     // Get user's volunteers from Volunteer collection
-//     const userVolunteers = await VolunteerModel.find({ user_id: user.uid });
-
-//     // Check if account is disabled
-//     if (user.is_active === false) {
-//       return res.status(403).json({
-//         message:
-//           "Your account has been disabled. Please contact the administrator for assistance.",
-//       });
-//     }
-
-//     const userData = {
-//       uid: user.uid,
-//       email: user.email,
-//       first_name: user.first_name,
-//       middle_name: user.middle_name,
-//       last_name: user.last_name,
-//       // gender: user.gender,
-//       contact_number: user.contact_number,
-//       // civil_status: user.civil_status,
-//       birthday: user.birthday,
-//       is_priest: user.is_priest,
-//       previous_parish: user.previous_parish,
-//       residency: user.residency,
-//       is_active: user.is_active !== false, // Ensure is_active is included
-//       volunteers: userVolunteers || [],
-//     };
-
-//     res.status(200).json({
-//       message: "Login successful.",
-//       user: userData,
-//     });
-//   } catch (err) {
-//     console.error("Error:", err);
-//     res.status(500).json({ message: "Server error. Please try again later." });
-//   }
-// }
-
 async function login(req, res) {
   try {
-    const { firebaseToken } = req.body;
+    const { email, password, firebaseToken } = req.body;
 
-    if (!firebaseToken) {
-      return res.status(400).json({ message: "Firebase token is required." });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
     }
 
-    const admin = require("../config/firebaseAdmin");
-
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-    } catch (err) {
-      console.error("Firebase token invalid:", err);
-      return res.status(401).json({ message: "Invalid authentication token." });
+    if (!password && !firebaseToken) {
+      return res.status(400).json({ message: "Password or Firebase token is required." });
     }
 
-    const uid = decodedToken.uid;
-
-    const user = await UserModel.findOne({
-      uid,
-      is_deleted: false,
-    });
+    const user = await UserModel.findOne({ email: email.trim().toLowerCase(), is_deleted: false });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(401).json({ message: "Invalid email or password." });
     }
 
+    let isPasswordValid = false;
+
+    // If Firebase token is provided, verify with Firebase Admin
+    if (firebaseToken) {
+      try {
+        const admin = require("../config/firebaseAdmin");
+        const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+        
+        // Verify the token belongs to the correct user
+        if (decodedToken.email !== email.trim().toLowerCase()) {
+          return res.status(401).json({ message: "Invalid email or password." });
+        }
+        
+        // Firebase Auth verification succeeded
+        isPasswordValid = true;
+        
+        // Note: We can't sync the password hash from Firebase to MongoDB
+        // because Firebase doesn't expose password hashes. The password in MongoDB
+        // will remain out of sync, but login will work via Firebase token.
+        
+      } catch (firebaseError) {
+        console.error("Firebase token verification failed:", firebaseError);
+        // If Firebase verification fails, fall back to password check
+        if (password) {
+          isPasswordValid = await bcrypt.compare(password, user.password);
+        } else {
+          return res.status(401).json({ message: "Invalid email or password." });
+        }
+      }
+    } else {
+      // Use traditional password verification
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    }
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    // Get user's volunteers from Volunteer collection
+    const userVolunteers = await VolunteerModel.find({ user_id: user.uid });
+
+    // Check if account is disabled
     if (user.is_active === false) {
-      return res.status(403).json({
-        message:
-          "Your account has been disabled. Please contact the administrator.",
+      return res.status(403).json({ 
+        message: "Your account has been disabled. Please contact the administrator for assistance." 
       });
     }
 
-    const userVolunteers = await VolunteerModel.find({ user_id: uid });
+    const userData = {
+      uid: user.uid,
+      email: user.email,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      // gender: user.gender,
+      contact_number: user.contact_number,
+      // civil_status: user.civil_status,
+      birthday: user.birthday,
+      is_priest: user.is_priest,
+      previous_parish: user.previous_parish,
+      residency: user.residency,
+      is_active: user.is_active !== false, // Ensure is_active is included
+      volunteers: userVolunteers || []
+    };
 
     res.status(200).json({
       message: "Login successful.",
-      user: {
-        uid: user.uid,
-        email: user.email,
-        first_name: user.first_name,
-        middle_name: user.middle_name,
-        last_name: user.last_name,
-        contact_number: user.contact_number,
-        birthday: user.birthday,
-        is_priest: user.is_priest,
-        previous_parish: user.previous_parish,
-        residency: user.residency,
-        is_active: user.is_active,
-        volunteers: userVolunteers || [],
-      },
+      user: userData,
     });
     
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("Error:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
@@ -335,7 +265,7 @@ async function login(req, res) {
 async function getAllUsers(req, res) {
   try {
     const users = await UserModel.find({ is_deleted: false });
-    const usersData = users.map((user) => ({
+    const usersData = users.map(user => ({
       uid: user.uid,
       email: user.email,
       is_active: user.is_active, // Return actual value from database
@@ -350,14 +280,12 @@ async function getAllUsers(req, res) {
       residency: user.residency,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      archived_at: user.archived_at || null,
+      archived_at: user.archived_at || null
     }));
     return res.json(usersData);
   } catch (err) {
     console.error("Error:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error. Please try again later." });
+    return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
@@ -369,10 +297,8 @@ async function updateUserRole(req, res) {
       return res.status(400).json({ message: "User ID is required." });
     }
 
-    if (typeof is_priest !== "boolean") {
-      return res
-        .status(400)
-        .json({ message: "is_priest must be a boolean value." });
+    if (typeof is_priest !== 'boolean') {
+      return res.status(400).json({ message: "is_priest must be a boolean value." });
     }
 
     // Find the user
@@ -398,9 +324,10 @@ async function updateUserRole(req, res) {
     };
 
     res.status(200).json({
-      message: `User role updated successfully. User is now ${is_priest ? "a priest" : "a regular user"}.`,
+      message: `User role updated successfully. User is now ${is_priest ? 'a priest' : 'a regular user'}.`,
       user: updatedUserData,
     });
+
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -415,20 +342,18 @@ async function checkEmailExists(req, res) {
       return res.status(400).json({ message: "Email is required." });
     }
 
-    const user = await UserModel.findOne({
+    const user = await UserModel.findOne({ 
       email: email.trim().toLowerCase(),
-      is_deleted: false,
+      is_deleted: false 
     });
 
-    return res.status(200).json({
+    return res.status(200).json({ 
       exists: !!user,
-      message: user ? "Email already exists." : "Email is available.",
+      message: user ? "Email already exists." : "Email is available."
     });
   } catch (err) {
     console.error("Error:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error. Please try again later." });
+    return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
@@ -440,22 +365,18 @@ async function checkContactExists(req, res) {
       return res.status(400).json({ message: "Contact number is required." });
     }
 
-    const user = await UserModel.findOne({
+    const user = await UserModel.findOne({ 
       contact_number: contact_number.trim(),
-      is_deleted: false,
+      is_deleted: false 
     });
 
-    return res.status(200).json({
+    return res.status(200).json({ 
       exists: !!user,
-      message: user
-        ? "Contact number already exists."
-        : "Contact number is available.",
+      message: user ? "Contact number already exists." : "Contact number is available."
     });
   } catch (err) {
     console.error("Error:", err);
-    return res
-      .status(500)
-      .json({ message: "Server error. Please try again later." });
+    return res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
@@ -492,15 +413,11 @@ async function updateUser(req, res) {
       const existingEmail = await UserModel.findOne({
         email: email.trim().toLowerCase(),
         is_deleted: false,
-        uid: { $ne: uid },
+        uid: { $ne: uid }
       });
 
       if (existingEmail) {
-        return res
-          .status(409)
-          .json({
-            message: "Email already exists. Please use a different email.",
-          });
+        return res.status(409).json({ message: "Email already exists. Please use a different email." });
       }
     }
 
@@ -509,58 +426,49 @@ async function updateUser(req, res) {
       const existingContact = await UserModel.findOne({
         contact_number: contact_number.trim(),
         is_deleted: false,
-        uid: { $ne: uid },
+        uid: { $ne: uid }
       });
 
       if (existingContact) {
-        return res
-          .status(409)
-          .json({
-            message:
-              "Contact number already exists. Please use a different contact number.",
-          });
+        return res.status(409).json({ message: "Contact number already exists. Please use a different contact number." });
       }
     }
 
     // Store old values to check if name or contact changed
-    const oldFirstName = user.first_name || "";
-    const oldMiddleName = user.middle_name || "";
-    const oldLastName = user.last_name || "";
-    const oldContact = user.contact_number || "";
-
+    const oldFirstName = user.first_name || '';
+    const oldMiddleName = user.middle_name || '';
+    const oldLastName = user.last_name || '';
+    const oldContact = user.contact_number || '';
+    
     // Build old full name for comparison
-    const oldFullName = [oldFirstName, oldMiddleName, oldLastName]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
+    const oldFullName = [
+      oldFirstName,
+      oldMiddleName,
+      oldLastName
+    ].filter(Boolean).join(' ').trim();
 
     // Update user fields
     if (first_name !== undefined) user.first_name = first_name;
     if (middle_name !== undefined) user.middle_name = middle_name;
     if (last_name !== undefined) user.last_name = last_name;
     // if (gender !== undefined) user.gender = gender;
-    if (contact_number !== undefined)
-      user.contact_number = contact_number.trim();
+    if (contact_number !== undefined) user.contact_number = contact_number.trim();
     // if (civil_status !== undefined) user.civil_status = civil_status;
     if (birthday !== undefined) user.birthday = birthday;
     if (email !== undefined) user.email = email.trim().toLowerCase();
     if (is_priest !== undefined) user.is_priest = is_priest;
-    if (previous_parish !== undefined)
-      user.previous_parish = previous_parish || "";
-
+    if (previous_parish !== undefined) user.previous_parish = previous_parish || "";
+    
     // Handle residency field properly - don't set empty string (not valid enum)
     if (residency !== undefined) {
-      if (
-        residency &&
-        (residency === "Permanent" || residency === "Floating")
-      ) {
+      if (residency && (residency === "Permanent" || residency === "Floating")) {
         user.residency = residency;
       } else {
         // If not a valid enum value, set to undefined (will be omitted)
         user.residency = undefined;
       }
     }
-
+    
     // If user is not a priest, clear residency and previous_parish
     if (user.is_priest === false) {
       user.residency = undefined;
@@ -573,27 +481,24 @@ async function updateUser(req, res) {
 
     // Build the new full name
     const newFullName = [
-      user.first_name || "",
-      user.middle_name || "",
-      user.last_name || "",
-    ]
-      .filter(Boolean)
-      .join(" ")
-      .trim();
+      user.first_name || '',
+      user.middle_name || '',
+      user.last_name || ''
+    ].filter(Boolean).join(' ').trim();
 
     // Check if name or contact actually changed
     const nameChanged = newFullName !== oldFullName;
-    const contactChanged = (user.contact_number || "") !== oldContact;
+    const contactChanged = (user.contact_number || '') !== oldContact;
 
     // Update all volunteer records if name or contact changed
     if (nameChanged || contactChanged) {
       try {
         const updateFields = {};
-
+        
         if (nameChanged && newFullName) {
           updateFields.name = newFullName;
         }
-
+        
         if (contactChanged && user.contact_number) {
           updateFields.contact = user.contact_number;
         }
@@ -601,17 +506,12 @@ async function updateUser(req, res) {
         if (Object.keys(updateFields).length > 0) {
           const updateResult = await VolunteerModel.updateMany(
             { user_id: user.uid },
-            { $set: updateFields },
+            { $set: updateFields }
           );
-          console.log(
-            `Updated ${updateResult.modifiedCount} volunteer records for user ${user.uid}`,
-          );
+          console.log(`Updated ${updateResult.modifiedCount} volunteer records for user ${user.uid}`);
         }
       } catch (volunteerUpdateError) {
-        console.error(
-          "Error updating volunteer records:",
-          volunteerUpdateError,
-        );
+        console.error('Error updating volunteer records:', volunteerUpdateError);
         // Don't fail the user update if volunteer update fails, but log it
       }
     }
@@ -632,38 +532,31 @@ async function updateUser(req, res) {
       is_priest: user.is_priest,
       previous_parish: user.previous_parish,
       residency: user.residency,
-      volunteers: userVolunteers || [],
+      volunteers: userVolunteers || []
     };
 
     res.status(200).json({
       message: "Profile updated successfully.",
       user: updatedUserData,
     });
+
   } catch (err) {
     console.error("Error:", err);
 
     // Handle MongoDB duplicate key error
     if (err.code === 11000) {
       const field = Object.keys(err.keyPattern)[0];
-      if (field === "email") {
-        return res
-          .status(409)
-          .json({
-            message: "Email already exists. Please use a different email.",
-          });
-      } else if (field === "contact_number") {
-        return res
-          .status(409)
-          .json({
-            message:
-              "Contact number already exists. Please use a different contact number.",
-          });
+      if (field === 'email') {
+        return res.status(409).json({ message: "Email already exists. Please use a different email." });
+      } else if (field === 'contact_number') {
+        return res.status(409).json({ message: "Contact number already exists. Please use a different contact number." });
       }
     }
 
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
+
 
 async function addVolunteer(req, res) {
   try {
@@ -674,16 +567,12 @@ async function addVolunteer(req, res) {
     }
 
     if (!volunteer) {
-      return res
-        .status(400)
-        .json({ message: "Volunteer information is required." });
+      return res.status(400).json({ message: "Volunteer information is required." });
     }
 
     // Validate required volunteer fields
     if (!volunteer.name || !volunteer.contact) {
-      return res
-        .status(400)
-        .json({ message: "Name and contact are required." });
+      return res.status(400).json({ message: "Name and contact are required." });
     }
 
     // Find the user
@@ -697,14 +586,14 @@ async function addVolunteer(req, res) {
     const existingVolunteer = await VolunteerModel.findOne({
       user_id: uid,
       event_id: volunteer.eventId || null,
-      status: { $ne: "cancelled" },
+      status: { $ne: "cancelled" }
     });
 
     if (existingVolunteer) {
-      return res.status(400).json({
-        message: volunteer.eventId
-          ? "You have already volunteered/registered for this event."
-          : "You have already signed up as a volunteer.",
+      return res.status(400).json({ 
+        message: volunteer.eventId 
+          ? "You have already volunteered/registered for this event." 
+          : "You have already signed up as a volunteer." 
       });
     }
 
@@ -725,17 +614,15 @@ async function addVolunteer(req, res) {
     try {
       const AdminModel = require("../models/Admin");
       const { notifyAllAdmins } = require("../utils/NotificationHelper");
-
+      
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
       const adminIds = admins.map((admin) => admin.uid);
       if (adminIds.length > 0) {
-        const userName =
-          `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim();
-        const eventInfo =
-          volunteer.eventTitle && volunteer.eventTitle !== "General Volunteer"
-            ? ` for ${volunteer.eventTitle}`
-            : "";
-
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        const eventInfo = volunteer.eventTitle && volunteer.eventTitle !== 'General Volunteer' 
+          ? ` for ${volunteer.eventTitle}` 
+          : '';
+        
         await notifyAllAdmins(
           adminIds,
           "volunteer",
@@ -747,17 +634,14 @@ async function addVolunteer(req, res) {
               volunteer_id: newVolunteer._id.toString(),
               user_id: uid,
               user_name: userName,
-              event_title: volunteer.eventTitle || "General Volunteer",
+              event_title: volunteer.eventTitle || 'General Volunteer',
             },
             priority: "medium",
-          },
+          }
         );
       }
     } catch (notificationError) {
-      console.error(
-        "Error sending admin notifications for volunteer:",
-        notificationError,
-      );
+      console.error("Error sending admin notifications for volunteer:", notificationError);
       // Don't fail the request if notifications fail
     }
 
@@ -775,13 +659,14 @@ async function addVolunteer(req, res) {
       // civil_status: user.civil_status,
       birthday: user.birthday,
       is_priest: user.is_priest,
-      volunteers: userVolunteers || [],
+      volunteers: userVolunteers || []
     };
 
     res.status(200).json({
       message: "Volunteer information added successfully.",
       user: updatedUserData,
     });
+
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -793,16 +678,14 @@ async function updateUserStatus(req, res) {
     const { uid, is_active } = req.body;
 
     if (!uid || typeof is_active !== "boolean") {
-      return res
-        .status(400)
-        .json({ message: "User ID and status are required." });
+      return res.status(400).json({ message: "User ID and status are required." });
     }
 
     const user = await UserModel.findOne({ uid, is_deleted: false });
     if (!user) return res.status(404).json({ message: "User not found." });
 
     user.is_active = is_active;
-
+    
     // Fix residency field if it's an empty string (not a valid enum value)
     // For non-priests, clear residency. For priests, ensure it's valid or undefined
     if (!user.is_priest) {
@@ -816,7 +699,7 @@ async function updateUserStatus(req, res) {
         user.residency = undefined;
       }
     }
-
+    
     await user.save();
 
     res.status(200).json({
@@ -827,6 +710,7 @@ async function updateUserStatus(req, res) {
         is_active: user.is_active,
       },
     });
+
   } catch (err) {
     console.error("Error updating user status:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -835,25 +719,25 @@ async function updateUserStatus(req, res) {
 
 async function getAllPriests(req, res) {
   try {
-    const priests = await UserModel.find({
-      is_priest: true,
+    const priests = await UserModel.find({ 
+      is_priest: true, 
       is_deleted: false,
-      is_active: true,
+      is_active: true 
     })
-      .select("uid first_name middle_name last_name email contact_number")
-      .lean();
+    .select('uid first_name middle_name last_name email contact_number')
+    .lean();
 
-    const priestsWithFullName = priests.map((priest) => ({
+    const priestsWithFullName = priests.map(priest => ({
       ...priest,
-      full_name:
-        `${priest.first_name} ${priest.middle_name || ""} ${priest.last_name}`.trim(),
+      full_name: `${priest.first_name} ${priest.middle_name || ''} ${priest.last_name}`.trim()
     }));
 
-    res.status(200).json({
-      message: "Priests retrieved successfully.",
+    res.status(200).json({ 
+      message: "Priests retrieved successfully.", 
       priests: priestsWithFullName,
-      count: priestsWithFullName.length,
+      count: priestsWithFullName.length 
     });
+
   } catch (err) {
     console.error("Error getting priests:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -882,12 +766,12 @@ async function archiveUser(req, res) {
     const archiveUserData = user.toObject();
     delete archiveUserData._id; // Remove the original _id
     delete archiveUserData.__v; // Remove version key
-
+    
     // Add archive metadata
     archiveUserData.archived_at = new Date();
     archiveUserData.is_archived = true;
     archiveUserData.original_uid = uid; // Keep reference to original uid
-
+    
     // Save to archive collection (ArchiveUsers)
     const archivedUser = new ArchiveUserModel(archiveUserData);
     await archivedUser.save();
@@ -898,8 +782,7 @@ async function archiveUser(req, res) {
     await user.save();
 
     res.status(200).json({
-      message:
-        "User archived successfully. User data has been saved to archive database.",
+      message: "User archived successfully. User data has been saved to archive database.",
       user: {
         uid: user.uid,
         email: user.email,
@@ -907,6 +790,7 @@ async function archiveUser(req, res) {
         archived_at: user.archived_at,
       },
     });
+
   } catch (err) {
     console.error("Error archiving user:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -939,8 +823,7 @@ async function unarchiveUser(req, res) {
     await user.save();
 
     res.status(200).json({
-      message:
-        "User unarchived successfully. User has been restored to active users.",
+      message: "User unarchived successfully. User has been restored to active users.",
       user: {
         uid: user.uid,
         email: user.email,
@@ -948,6 +831,7 @@ async function unarchiveUser(req, res) {
         archived_at: user.archived_at,
       },
     });
+
   } catch (err) {
     console.error("Error unarchiving user:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
@@ -975,48 +859,29 @@ async function resetUserPassword(req, res) {
     // Generate password reset link using Firebase Admin SDK
     const admin = require("../config/firebaseAdmin");
     try {
-      const resetLink = await admin
-        .auth()
-        .generatePasswordResetLink(user.email);
-
+      const resetLink = await admin.auth().generatePasswordResetLink(user.email);
+      
       // Note: In a production environment, you would send this link via email
       // For now, we'll use Firebase's built-in sendPasswordResetEmail from the client side
       // This endpoint just validates the user exists
-
+      
       res.status(200).json({
         message: "Password reset email will be sent to the user.",
         email: user.email,
         success: true,
       });
+
     } catch (firebaseError) {
       console.error("Firebase password reset error:", firebaseError);
-      return res.status(500).json({
-        message: "Failed to generate password reset link. Please try again.",
+      return res.status(500).json({ 
+        message: "Failed to generate password reset link. Please try again." 
       });
     }
+
   } catch (err) {
     console.error("Error resetting user password:", err);
     res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
 
-
-
-
-module.exports = {
-  createUser,
-  findUser,
-  login,
-  getAllUsers,
-  checkEmailExists,
-  checkContactExists,
-  updateUser,
-  addVolunteer,
-  updateUserRole,
-  updateUserStatus,
-  getAllPriests,
-  archiveUser,
-  unarchiveUser,
-  resetUserPassword,
-
-};
+module.exports = { createUser, findUser, login, getAllUsers, checkEmailExists, checkContactExists, updateUser, addVolunteer, updateUserRole, updateUserStatus, getAllPriests, archiveUser, unarchiveUser, resetUserPassword }
