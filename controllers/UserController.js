@@ -262,65 +262,105 @@ async function findUser(req, res) {
 //   }
 // }
 
+// async function login(req, res) {
+//   try {
+//     const { firebaseToken } = req.body;
+
+//     if (!firebaseToken) {
+//       return res.status(400).json({ message: "Firebase token is required." });
+//     }
+
+//     const admin = require("../config/firebaseAdmin");
+
+//     let decodedToken;
+//     try {
+//       decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+//     } catch (err) {
+//       console.error("Firebase token invalid:", err);
+//       return res.status(401).json({ message: "Invalid authentication token." });
+//     }
+
+//     const uid = decodedToken.uid;
+
+//     const user = await UserModel.findOne({
+//       uid,
+//       is_deleted: false,
+//     });
+
+//     if (!user) {
+//       return res.status(404).json({ message: "User not found." });
+//     }
+
+//     if (user.is_active === false) {
+//       return res.status(403).json({
+//         message: "Your account has been disabled. Please contact the administrator.",
+//       });
+//     }
+
+//     const userVolunteers = await VolunteerModel.find({ user_id: uid });
+
+//     res.status(200).json({
+//       message: "Login successful.",
+//       user: {
+//         uid: user.uid,
+//         email: user.email,
+//         first_name: user.first_name,
+//         middle_name: user.middle_name,
+//         last_name: user.last_name,
+//         contact_number: user.contact_number,
+//         birthday: user.birthday,
+//         is_priest: user.is_priest,
+//         previous_parish: user.previous_parish,
+//         residency: user.residency,
+//         is_active: user.is_active,
+//         volunteers: userVolunteers || [],
+//       },
+//     });
+//   } catch (err) {
+//     console.error("Login error:", err);
+//     res.status(500).json({ message: "Server error. Please try again later." });
+//   }
+// }
+
 async function login(req, res) {
   try {
     const { firebaseToken } = req.body;
+    console.log("🔐 Login hit");
 
     if (!firebaseToken) {
+      console.log("❌ No token received");
       return res.status(400).json({ message: "Firebase token is required." });
     }
+
+    console.log("✅ Token received (length):", firebaseToken.length);
 
     const admin = require("../config/firebaseAdmin");
 
     let decodedToken;
     try {
       decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+      console.log("✅ Token verified:", decodedToken.uid);
     } catch (err) {
-      console.error("Firebase token invalid:", err);
+      console.error("❌ Firebase verify failed:", err.message);
       return res.status(401).json({ message: "Invalid authentication token." });
     }
 
     const uid = decodedToken.uid;
 
-    const user = await UserModel.findOne({
-      uid,
-      is_deleted: false,
-    });
+    const user = await UserModel.findOne({ uid });
+    console.log("👤 User found:", !!user);
 
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
 
-    if (user.is_active === false) {
-      return res.status(403).json({
-        message: "Your account has been disabled. Please contact the administrator.",
-      });
-    }
-
-    const userVolunteers = await VolunteerModel.find({ user_id: uid });
-
-    res.status(200).json({
-      message: "Login successful.",
-      user: {
-        uid: user.uid,
-        email: user.email,
-        first_name: user.first_name,
-        middle_name: user.middle_name,
-        last_name: user.last_name,
-        contact_number: user.contact_number,
-        birthday: user.birthday,
-        is_priest: user.is_priest,
-        previous_parish: user.previous_parish,
-        residency: user.residency,
-        is_active: user.is_active,
-        volunteers: userVolunteers || [],
-      },
-    });
+    return res.status(200).json({ message: "Login success", user });
   } catch (err) {
-    console.error("Login error:", err);
-    res.status(500).json({ message: "Server error. Please try again later." });
+    console.error("🔥 Login crash:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 }
+
 
 async function getAllUsers(req, res) {
   try {
