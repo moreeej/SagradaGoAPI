@@ -193,26 +193,30 @@ async function login(req, res) {
       try {
         const admin = require("../config/firebaseAdmin");
         const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-        
-        // Verify the token belongs to the correct user
-        if (decodedToken.email !== email.trim().toLowerCase()) {
+        const normalizedReqEmail = email.trim().toLowerCase();
+        const normalizedTokenEmail = (decodedToken.email || "").trim().toLowerCase();
+
+        // Verify the token belongs to the correct user (case-insensitive)
+        if (normalizedTokenEmail !== normalizedReqEmail) {
           return res.status(401).json({ message: "Invalid email or password." });
         }
-        
-        // Firebase Auth verification succeeded
+
+        // Firebase Auth verification succeeded — trust Firebase (e.g. after password reset)
         isPasswordValid = true;
-        
-        // Note: We can't sync the password hash from Firebase to MongoDB
-        // because Firebase doesn't expose password hashes. The password in MongoDB
-        // will remain out of sync, but login will work via Firebase token.
-        
+
+        // Note: After Firebase password reset, MongoDB password hash is not updated.
+        // Login works via Firebase token; we do not require MongoDB password to match.
       } catch (firebaseError) {
-        console.error("Firebase token verification failed:", firebaseError);
-        // If Firebase verification fails, fall back to password check
+        console.error("Firebase token verification failed:", firebaseError?.message || firebaseError);
+        // If Firebase verification fails, fall back to password check only when no password reset is involved.
+        // After a Firebase-only password reset, MongoDB still has the old hash, so bcrypt would fail.
         if (password) {
           isPasswordValid = await bcrypt.compare(password, user.password);
-        } else {
-          return res.status(401).json({ message: "Invalid email or password." });
+        }
+        if (!isPasswordValid) {
+          return res.status(401).json({
+            message: "Invalid email or password. If you recently reset your password, try signing in again or wait a moment.",
+          });
         }
       }
     } else {
