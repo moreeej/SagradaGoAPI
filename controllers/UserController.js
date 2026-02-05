@@ -168,199 +168,99 @@ async function findUser(req, res) {
   }
 }
 
-// async function login(req, res) {
-//   try {
-//     const { email, password, firebaseToken } = req.body;
-
-//     if (!email) {
-//       return res.status(400).json({ message: "Email is required." });
-//     }
-
-//     if (!password && !firebaseToken) {
-//       return res.status(400).json({ message: "Password or Firebase token is required." });
-//     }
-
-//     const user = await UserModel.findOne({ email: email.trim().toLowerCase(), is_deleted: false });
-
-//     if (!user) {
-//       return res.status(401).json({ message: "Invalid email or password." });
-//     }
-
-//     let isPasswordValid = false;
-
-//     // If Firebase token is provided, verify with Firebase Admin
-//     if (firebaseToken) {
-//       try {
-//         const admin = require("../config/firebaseAdmin");
-//         const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-        
-//         // Verify the token belongs to the correct user
-//         if (decodedToken.email !== email.trim().toLowerCase()) {
-//           return res.status(401).json({ message: "Invalid email or password." });
-//         }
-        
-//         // Firebase Auth verification succeeded
-//         isPasswordValid = true;
-        
-//         // Note: We can't sync the password hash from Firebase to MongoDB
-//         // because Firebase doesn't expose password hashes. The password in MongoDB
-//         // will remain out of sync, but login will work via Firebase token.
-        
-//       } catch (firebaseError) {
-//         console.error("Firebase token verification failed:", firebaseError);
-//         // If Firebase verification fails, fall back to password check
-//         if (password) {
-//           isPasswordValid = await bcrypt.compare(password, user.password);
-//         } else {
-//           return res.status(401).json({ message: "Invalid email or password." });
-//         }
-//       }
-//     } else {
-//       // Use traditional password verification
-//       isPasswordValid = await bcrypt.compare(password, user.password);
-//     }
-
-//     if (!isPasswordValid) {
-//       return res.status(401).json({ message: "Invalid email or password." });
-//     }
-
-//     // Get user's volunteers from Volunteer collection
-//     const userVolunteers = await VolunteerModel.find({ user_id: user.uid });
-
-//     // Check if account is disabled
-//     if (user.is_active === false) {
-//       return res.status(403).json({ 
-//         message: "Your account has been disabled. Please contact the administrator for assistance." 
-//       });
-//     }
-
-//     const userData = {
-//       uid: user.uid,
-//       email: user.email,
-//       first_name: user.first_name,
-//       middle_name: user.middle_name,
-//       last_name: user.last_name,
-//       // gender: user.gender,
-//       contact_number: user.contact_number,
-//       // civil_status: user.civil_status,
-//       birthday: user.birthday,
-//       is_priest: user.is_priest,
-//       previous_parish: user.previous_parish,
-//       residency: user.residency,
-//       is_active: user.is_active !== false, // Ensure is_active is included
-//       volunteers: userVolunteers || []
-//     };
-
-//     res.status(200).json({
-//       message: "Login successful.",
-//       user: userData,
-//     });
-    
-//   } catch (err) {
-//     console.error("Error:", err);
-//     res.status(500).json({ message: "Server error. Please try again later." });
-//   }
-// }
-
-// async function login(req, res) {
-//   try {
-//     const { firebaseToken } = req.body;
-
-//     if (!firebaseToken) {
-//       return res.status(400).json({ message: "Firebase token is required." });
-//     }
-
-//     const admin = require("../config/firebaseAdmin");
-
-//     let decodedToken;
-//     try {
-//       decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-//     } catch (err) {
-//       console.error("Firebase token invalid:", err);
-//       return res.status(401).json({ message: "Invalid authentication token." });
-//     }
-
-//     const uid = decodedToken.uid;
-
-//     const user = await UserModel.findOne({
-//       uid,
-//       is_deleted: false,
-//     });
-
-//     if (!user) {
-//       return res.status(404).json({ message: "User not found." });
-//     }
-
-//     if (user.is_active === false) {
-//       return res.status(403).json({
-//         message: "Your account has been disabled. Please contact the administrator.",
-//       });
-//     }
-
-//     const userVolunteers = await VolunteerModel.find({ user_id: uid });
-
-//     res.status(200).json({
-//       message: "Login successful.",
-//       user: {
-//         uid: user.uid,
-//         email: user.email,
-//         first_name: user.first_name,
-//         middle_name: user.middle_name,
-//         last_name: user.last_name,
-//         contact_number: user.contact_number,
-//         birthday: user.birthday,
-//         is_priest: user.is_priest,
-//         previous_parish: user.previous_parish,
-//         residency: user.residency,
-//         is_active: user.is_active,
-//         volunteers: userVolunteers || [],
-//       },
-//     });
-//   } catch (err) {
-//     console.error("Login error:", err);
-//     res.status(500).json({ message: "Server error. Please try again later." });
-//   }
-// }
-
 async function login(req, res) {
   try {
-    const { firebaseToken } = req.body;
-    console.log("🔐 Login hit");
+    const { email, password, firebaseToken } = req.body;
 
-    if (!firebaseToken) {
-      console.log("❌ No token received");
-      return res.status(400).json({ message: "Firebase token is required." });
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
     }
 
-    console.log("✅ Token received (length):", firebaseToken.length);
-
-    const admin = require("../config/firebaseAdmin");
-
-    let decodedToken;
-    try {
-      decodedToken = await admin.auth().verifyIdToken(firebaseToken);
-      console.log("✅ Token verified:", decodedToken.uid);
-    } catch (err) {
-      console.error("❌ Firebase verify failed:", err.message);
-      return res.status(401).json({ message: "Invalid authentication token." });
+    if (!password && !firebaseToken) {
+      return res.status(400).json({ message: "Password or Firebase token is required." });
     }
 
-    const uid = decodedToken.uid;
-
-    const user = await UserModel.findOne({ uid });
-    console.log("👤 User found:", !!user);
+    const user = await UserModel.findOne({ email: email.trim().toLowerCase(), is_deleted: false });
 
     if (!user) {
-      return res.status(404).json({ message: "User not found." });
+      return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    return res.status(200).json({ message: "Login success", user });
+    let isPasswordValid = false;
+
+    // If Firebase token is provided, verify with Firebase Admin
+    if (firebaseToken) {
+      try {
+        const admin = require("../config/firebaseAdmin");
+        const decodedToken = await admin.auth().verifyIdToken(firebaseToken);
+        
+        // Verify the token belongs to the correct user
+        if (decodedToken.email !== email.trim().toLowerCase()) {
+          return res.status(401).json({ message: "Invalid email or password." });
+        }
+        
+        // Firebase Auth verification succeeded
+        isPasswordValid = true;
+        
+        // Note: We can't sync the password hash from Firebase to MongoDB
+        // because Firebase doesn't expose password hashes. The password in MongoDB
+        // will remain out of sync, but login will work via Firebase token.
+        
+      } catch (firebaseError) {
+        console.error("Firebase token verification failed:", firebaseError);
+        // If Firebase verification fails, fall back to password check
+        if (password) {
+          isPasswordValid = await bcrypt.compare(password, user.password);
+        } else {
+          return res.status(401).json({ message: "Invalid email or password." });
+        }
+      }
+    } else {
+      // Use traditional password verification
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    }
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password." });
+    }
+
+    // Get user's volunteers from Volunteer collection
+    const userVolunteers = await VolunteerModel.find({ user_id: user.uid });
+
+    // Check if account is disabled
+    if (user.is_active === false) {
+      return res.status(403).json({ 
+        message: "Your account has been disabled. Please contact the administrator for assistance." 
+      });
+    }
+
+    const userData = {
+      uid: user.uid,
+      email: user.email,
+      first_name: user.first_name,
+      middle_name: user.middle_name,
+      last_name: user.last_name,
+      // gender: user.gender,
+      contact_number: user.contact_number,
+      // civil_status: user.civil_status,
+      birthday: user.birthday,
+      is_priest: user.is_priest,
+      previous_parish: user.previous_parish,
+      residency: user.residency,
+      is_active: user.is_active !== false, // Ensure is_active is included
+      volunteers: userVolunteers || []
+    };
+
+    res.status(200).json({
+      message: "Login successful.",
+      user: userData,
+    });
+    
   } catch (err) {
-    console.error("🔥 Login crash:", err);
-    return res.status(500).json({ message: "Server error" });
+    console.error("Error:", err);
+    res.status(500).json({ message: "Server error. Please try again later." });
   }
 }
-
 
 async function getAllUsers(req, res) {
   try {
