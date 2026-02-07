@@ -693,6 +693,7 @@ async function updateUserStatus(req, res) {
       if (user.residency === "" || !user.residency) {
         user.residency = undefined;
       }
+      
     } else {
       // For priests, if residency is empty string, set to undefined
       if (user.residency === "") {
