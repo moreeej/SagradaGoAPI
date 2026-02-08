@@ -46,14 +46,15 @@ class EmailService {
       this.transporter = nodemailer.createTransport(emailConfig);
       this.isInitialized = true;
 
-      // Verify connection configuration
       this.transporter.verify((error, success) => {
         if (error) {
           console.error("Email service configuration error:", error);
+
         } else {
           console.log("Email service is ready to send messages");
         }
       });
+      
     } catch (error) {
       console.error("Failed to initialize email transporter:", error);
     }
@@ -82,6 +83,7 @@ class EmailService {
       const result = await this.transporter.sendMail(mailOptions);
       console.log("Email sent successfully:", result.messageId);
       return { success: true, messageId: result.messageId };
+
     } catch (error) {
       console.error("Error sending email:", error);
       return { success: false, error: error.message };
