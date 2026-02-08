@@ -207,6 +207,32 @@ async function createWedding(req, res) {
     const newWedding = new WeddingModel(weddingData);
     await newWedding.save();
 
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (userEmail) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          userName,
+          "Wedding",
+          {
+            transaction_id: weddingData.transaction_id,
+            date: weddingData.date,
+            time: weddingData.time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          userEmail,
+          "Wedding Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Wedding booking confirmation email sent to: ${userEmail}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending wedding booking confirmation email:", emailError);
+      // Don't fail the request if email sending fails
+    }
+
     // Notify all admins about the new booking (skip if created by admin)
     if (uid !== 'admin') {
       try {
@@ -659,6 +685,34 @@ async function AddWeddingBookingWeb(req, res) {
 
     // SAVE TO DB
     const savedWedding = await newWedding.save();
+
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (email) {
+        const userName = `${groom_first_name || 'Groom'} ${groom_middle_name || ''} ${groom_last_name || ''} & ${bride_first_name || 'Bride'} ${bride_middle_name || ''} ${bride_last_name || ''}`.trim();
+        
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          userName,
+          "Wedding",
+          {
+            transaction_id,
+            date,
+            time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          email,
+          "Wedding Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Wedding booking confirmation email sent to: ${email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending wedding booking confirmation email:", emailError);
+      // Don't fail the request if email sending fails
+    }
 
     res.status(201).json({
       success: true,

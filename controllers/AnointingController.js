@@ -273,6 +273,32 @@ async function createAnointing(req, res) {
     const newAnointing = new AnointingModel(anointingData);
     await newAnointing.save();
 
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (user.email) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim(),
+          "Anointing of the Sick",
+          {
+            transaction_id,
+            date,
+            time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          user.email,
+          "Anointing of the Sick Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Anointing booking confirmation email sent to: ${user.email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending anointing booking confirmation email:", emailError);
+      // Don't fail the request if email sending fails
+    }
+
     // Notify all admins about the new booking
     try {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
@@ -859,6 +885,32 @@ async function createAnointingWeb(req, res) {
 
     const newAnointing = new AnointingModel(anointingData);
     await newAnointing.save();
+
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (email) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          full_name,
+          "Anointing of the Sick",
+          {
+            transaction_id,
+            date,
+            time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          email,
+          "Anointing of the Sick Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Anointing booking confirmation email sent to: ${email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending anointing booking confirmation email:", emailError);
+      // Don't fail the request if email sending fails
+    }
 
     // try {
     //   const admins = await AdminModel.find({ is_deleted: false }).select("uid");

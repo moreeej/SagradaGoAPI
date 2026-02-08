@@ -714,8 +714,34 @@ async function createBaptism(req, res) {
 
     await newBaptism.save();
 
-    // Notify all admins about the new booking
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
     try {
+      if (user.email) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim(),
+          "Baptism",
+          {
+            transaction_id,
+            date: baptismData.date,
+            time: baptismData.time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          user.email,
+          "Baptism Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Baptism booking confirmation email sent to: ${user.email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending baptism booking confirmation email:", emailError);
+      // Don't fail the request if email sending fails
+    }
+
+    // Notify all admins about the new booking
+    try { 
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
       const adminIds = admins.map((admin) => admin.uid);
       if (adminIds.length > 0) {
@@ -1245,6 +1271,32 @@ async function AddBaptismalWeb(req, res) {
 
     // SAVE TO DB
     const savedBaptismal = await newBaptismal.save();
+
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (email) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          fullname,
+          "Baptism",
+          {
+            transaction_id,
+            date,
+            time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          email,
+          "Baptism Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Baptism booking confirmation email sent to: ${email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending baptism booking confirmation email:", emailError);
+      // Don't fail the request if email sending fails
+    }
 
     res.status(201).json({
       success: true,

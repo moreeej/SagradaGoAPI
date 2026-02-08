@@ -419,6 +419,53 @@ class EmailService {
       </html>
     `;
   }
+
+  generateBookingReceivedEmail(userName, bookingType, bookingDetails) {
+    const { transaction_id, date, time } = bookingDetails;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f8f9fa; }
+          .booking-details { background-color: white; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #3498db; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+          .status-received { color: #3498db; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Sagrada Familia Parish</h1>
+            <p>Booking Received</p>
+          </div>
+          <div class="content">
+            <h2>Dear ${userName},</h2>
+            <p>Your <strong>${bookingType}</strong> booking has been successfully received!</p>
+            
+            <div class="booking-details">
+              <h3>Booking Details:</h3>
+              <p><strong>Transaction ID:</strong> ${transaction_id}</p>
+              <p><strong>Date:</strong> ${new Date(date).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}</p>
+              <p><strong>Time:</strong> ${time || 'TBA'}</p>
+              <p><strong>Status:</strong> <span class="status-received">Received</span></p>
+            </div>
+
+            <p>We will notify you once your booking is approved by the parish admin.</p>
+            <p>Thank you for booking with us!</p>
+          </div>
+          <div class="footer">
+            <p>Sagrada Familia Parish</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
 }
 
 module.exports = new EmailService();

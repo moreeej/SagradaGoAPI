@@ -472,6 +472,31 @@ async function createBurial(req, res) {
     const newBurial = new BurialModel(burialData);
     await newBurial.save();
 
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (user.email) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim(),
+          "Burial",
+          {
+            transaction_id,
+            date: burialData.date,
+            time: burialData.time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          user.email,
+          "Burial Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Burial booking confirmation email sent to: ${user.email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending burial booking confirmation email:", emailError);
+    }
+
     // Notify all admins about the new booking
     try {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
@@ -985,6 +1010,31 @@ async function createBurialWeb(req, res) {
     });
 
     await newBurial.save();
+
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (email) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          full_name,
+          "Burial",
+          {
+            transaction_id,
+            date,
+            time,
+          }
+        );
+
+        await EmailService.sendEmail(
+          email,
+          "Burial Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Burial booking confirmation email sent to: ${email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending burial booking confirmation email:", emailError);
+    }
 
     res.status(201).json({ message: "Burial booking created successfully.", burial: newBurial });
   }

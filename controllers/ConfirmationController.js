@@ -135,6 +135,35 @@ async function createConfirmation(req, res) {
     const newConfirmation = new ConfirmationModel(confirmationData);
     await newConfirmation.save();
 
+    // ===== SEND CONFIRMATION EMAIL TO USER =====
+    try {
+      if (user.email) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        const emailHtml = EmailService.generateBookingReceivedEmail(
+          userName,
+          "Confirmation",
+          {
+            transaction_id,
+            date,
+            time: normalizeTime(time),
+            attendees,
+            sponsor_name: sponsor_name || ''
+          }
+        );
+
+        await EmailService.sendEmail(
+          user.email,
+          "Confirmation Booking Received - Sagrada Familia Parish",
+          emailHtml
+        );
+
+        console.log(`Confirmation booking email sent to: ${user.email}`);
+      }
+    } catch (emailError) {
+      console.error("Error sending confirmation booking email:", emailError);
+      // Don't fail the request if email sending fails
+    }
+
     // Notify all admins about the new booking
     try {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
