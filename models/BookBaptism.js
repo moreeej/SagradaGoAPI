@@ -38,6 +38,7 @@ const BaptismSchema = new mongoose.Schema(
     },
     candidate_middle_name: {
       type: String,
+      default: '',
     },
     candidate_last_name: {
       type: String,
@@ -58,6 +59,7 @@ const BaptismSchema = new mongoose.Schema(
     },
     mother_middle_name: {
       type: String,
+      default: '',
     },
     mother_last_name: {
       type: String,
@@ -74,6 +76,7 @@ const BaptismSchema = new mongoose.Schema(
     },
     father_middle_name: {
       type: String,
+      default: '',
     },
     father_last_name: {
       type: String,
@@ -103,6 +106,7 @@ const BaptismSchema = new mongoose.Schema(
     },
     main_godfather_middle_name: {
       type: String,
+      default: '',
     },
     main_godfather_last_name: {
       type: String,
@@ -115,6 +119,7 @@ const BaptismSchema = new mongoose.Schema(
     },
     main_godmother_middle_name: {
       type: String,
+      default: '',
     },
     main_godmother_last_name: {
       type: String,

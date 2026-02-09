@@ -45,7 +45,7 @@ const WeddingSchema = new mongoose.Schema(
     },
     groom_middle_name: {
       type: String,
-      required: true,
+      default: '',
     },
     groom_pic: {
       type: String,
@@ -61,7 +61,7 @@ const WeddingSchema = new mongoose.Schema(
     },
     bride_middle_name: {
       type: String,
-      required: true,
+      default: '',  
     },
     bride_pic: {
       type: String,
