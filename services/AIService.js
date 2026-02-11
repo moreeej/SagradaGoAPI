@@ -92,44 +92,6 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
   // Get available models first
   const availableModels = await getAvailableModels();
   
-  if (availableModels.length === 0) {
-    // If we can't list models, try common free tier models
-    console.log("Could not list models, trying common free tier models");
-    const fallbackModels = ["gemini-pro", "models/gemini-pro"];
-    
-    for (const modelName of fallbackModels) {
-      try {
-        // Try v1 API
-        const response = await axios.post(
-          `https://generativelanguage.googleapis.com/v1/${modelName}:generateContent?key=${geminiApiKey}`,
-          {
-            contents: [{
-              parts: [{ text: SYSTEM_PROMPT + "\n\nUser: " + userMessage + "\nAssistant:" }]
-            }]
-          },
-          {
-            headers: {
-              "Content-Type": "application/json"
-            }
-          }
-        );
-
-        if (response.data && response.data.candidates && response.data.candidates[0]) {
-          const aiResponse = response.data.candidates[0].content.parts[0].text;
-          await saveMessage(userId, "user", userMessage);
-          await saveMessage(userId, "assistant", aiResponse);
-          console.log(`Successfully used REST API with model: ${modelName}`);
-          return aiResponse;
-        }
-      } catch (error) {
-        console.log(`REST API model ${modelName} failed:`, error.response?.status || error.message);
-        continue;
-      }
-    }
-    
-    throw new Error("No available models found");
-  }
-
   // Build the prompt
   let fullPrompt = SYSTEM_PROMPT + "\n\n";
   conversationHistory.forEach((msg) => {
@@ -141,10 +103,58 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
   });
   fullPrompt += `User: ${userMessage}\nAssistant:`;
 
-  // Try each available model
-  for (const modelName of availableModels) {
-    // Try both v1 and v1beta
-    const apiVersions = ["v1", "v1beta"];
+  // If we have available models, try them first
+  if (availableModels.length > 0) {
+    // Try each available model
+    for (const modelName of availableModels) {
+      // Try both v1 and v1beta
+      const apiVersions = ["v1", "v1beta"];
+      
+      for (const version of apiVersions) {
+        try {
+          const url = `https://generativelanguage.googleapis.com/${version}/models/${modelName}:generateContent?key=${geminiApiKey}`;
+          const response = await axios.post(
+            url,
+            {
+              contents: [{
+                parts: [{ text: fullPrompt }]
+              }]
+            },
+            {
+              headers: {
+                "Content-Type": "application/json"
+              },
+              timeout: 30000 // 30 second timeout
+            }
+          );
+
+          if (response.data && response.data.candidates && response.data.candidates[0]) {
+            const aiResponse = response.data.candidates[0].content.parts[0].text;
+            await saveMessage(userId, "user", userMessage);
+            await saveMessage(userId, "assistant", aiResponse);
+            console.log(`Successfully used REST API with model: ${modelName} (${version})`);
+            return aiResponse;
+          }
+        } catch (error) {
+          console.log(`REST API ${version}/${modelName} failed:`, error.response?.status || error.message);
+          continue;
+        }
+      }
+    }
+  }
+  
+  // If we couldn't list models or all listed models failed, try common free tier models
+  console.log("Trying common free tier models as fallback");
+  const fallbackModels = [
+    "gemini-1.5-flash",
+    "gemini-1.5-flash-latest",
+    "gemini-1.5-pro",
+    "gemini-1.5-pro-latest",
+    "gemini-pro"
+  ];
+  
+  for (const modelName of fallbackModels) {
+    const apiVersions = ["v1beta", "v1"];
     
     for (const version of apiVersions) {
       try {
@@ -159,7 +169,8 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
           {
             headers: {
               "Content-Type": "application/json"
-            }
+            },
+            timeout: 30000
           }
         );
 
@@ -167,11 +178,11 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
           const aiResponse = response.data.candidates[0].content.parts[0].text;
           await saveMessage(userId, "user", userMessage);
           await saveMessage(userId, "assistant", aiResponse);
-          console.log(`Successfully used REST API with model: ${modelName} (${version})`);
+          console.log(`Successfully used REST API with fallback model: ${modelName} (${version})`);
           return aiResponse;
         }
       } catch (error) {
-        console.log(`REST API ${version}/${modelName} failed:`, error.response?.status || error.message);
+        console.log(`REST API fallback ${version}/${modelName} failed:`, error.response?.status || error.message);
         continue;
       }
     }
@@ -280,16 +291,26 @@ async function getAIResponse(userMessage, userId) {
     // Retrieve conversation history first
     const conversationHistory = await getConversationHistory(userId);
 
-    // Try REST API first since SDK models are not working
-    console.log("Trying REST API first...");
+    // Try REST API first since it's more reliable
+    console.log("Trying REST API...");
     try {
       const aiResponse = await getAIResponseViaREST(userMessage, userId, conversationHistory);
       return aiResponse;
     } catch (restError) {
       console.log("REST API failed, trying SDK:", restError.message);
+      
+      // If REST API failed with specific errors, check before falling back to SDK
+      const errorMessage = restError.message || "";
+      if (errorMessage.includes("quota") || 
+          errorMessage.includes("rate limit") || 
+          errorMessage.includes("API key")) {
+        throw restError; // Re-throw quota/auth errors - don't try SDK
+      }
     }
 
-    // Fallback to SDK if REST API fails
+    // Fallback to SDK if REST API fails (but not for quota/auth issues)
+    console.log("Attempting SDK fallback...");
+    
     // Check if Gemini is properly initialized
     if (!genAI) {
       const apiKey = process.env.GEMINI_API_KEY;
@@ -304,15 +325,14 @@ async function getAIResponse(userMessage, userId) {
 
     // Get the model - try different model names that are actually available
     if (!modelName) {
-      // Try these models in order of preference (using valid models)
+      // Try these models in order of preference
       const availableModels = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite", 
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.5-pro"
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "gemini-1.5-pro-latest"
       ];
-      modelName = availableModels[0]; // Start with the most likely to work
+      modelName = availableModels[0];
     }
     
     const model = genAI.getGenerativeModel({ 
@@ -320,7 +340,6 @@ async function getAIResponse(userMessage, userId) {
     });
 
     // Build the conversation history for Gemini
-    // Gemini uses a different format - we need to combine system prompt with history
     let fullPrompt = SYSTEM_PROMPT + "\n\n";
     
     // Add conversation history
@@ -344,6 +363,7 @@ async function getAIResponse(userMessage, userId) {
     await saveMessage(userId, "user", userMessage);
     await saveMessage(userId, "assistant", aiResponse);
 
+    console.log(`Successfully used SDK with model: ${modelName}`);
     return aiResponse;
   } catch (error) {
     // Log error for debugging (but don't expose to user)
@@ -370,20 +390,19 @@ async function getAIResponse(userMessage, userId) {
       return "I apologize, but the AI service is currently unavailable due to quota limits. Please try again later or contact the parish office for assistance. You can also use the 'Chat with Admin' feature for immediate help.";
     }
     
-    // Check for model not found errors
+    // Check for model not found errors - try fallback models
     if (statusCode === 404 || 
         errorMessage.toLowerCase().includes("not found") ||
-        errorMessage.toLowerCase().includes("not supported") ||
-        errorMessage.toLowerCase().includes("listmodels")) {
+        errorMessage.toLowerCase().includes("not supported")) {
       console.log("Model not found - trying alternative models");
       
-      // Try different model names that might work (using valid models)
+      // Try different model names that might work
       const fallbackModels = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.5-pro"
+        "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "gemini-1.5-pro-latest",
+        "gemini-pro"
       ];
       
       // Remove the model that already failed (if we know which one)
@@ -392,7 +411,7 @@ async function getAIResponse(userMessage, userId) {
       
       for (const fallbackModelName of modelsToTry) {
         try {
-          console.log(`Trying model: ${fallbackModelName}`);
+          console.log(`Trying SDK model: ${fallbackModelName}`);
           const fallbackModel = genAI.getGenerativeModel({ model: fallbackModelName });
           const conversationHistory = await getConversationHistory(userId);
           let fullPrompt = SYSTEM_PROMPT + "\n\n";
@@ -410,25 +429,17 @@ async function getAIResponse(userMessage, userId) {
           const aiResponse = response.text();
           await saveMessage(userId, "user", userMessage);
           await saveMessage(userId, "assistant", aiResponse);
-          console.log(`Successfully used model: ${fallbackModelName}`);
+          console.log(`Successfully used SDK model: ${fallbackModelName}`);
           return aiResponse;
         } catch (fallbackError) {
-          console.error(`Model ${fallbackModelName} failed:`, fallbackError.message);
+          console.error(`SDK model ${fallbackModelName} failed:`, fallbackError.message);
           continue; // Try next model
         }
       }
       
-      // If all SDK models failed, try REST API as last resort
-      console.log("All SDK models failed, trying REST API");
-      try {
-        const conversationHistory = await getConversationHistory(userId);
-        const aiResponse = await getAIResponseViaREST(userMessage, userId, conversationHistory);
-        return aiResponse;
-      } catch (restError) {
-        console.error("REST API also failed:", restError.message);
-        // Return a helpful error message
-        return "I apologize, but the AI service is experiencing technical difficulties. Please try again later or use the 'Chat with Admin' feature for immediate assistance.";
-      }
+      // If all SDK models failed, return helpful error
+      console.log("All SDK models failed");
+      return "I apologize, but the AI service is experiencing technical difficulties. Please try again later or use the 'Chat with Admin' feature for immediate assistance.";
     }
     
     // Check for API key errors
@@ -590,33 +601,19 @@ Provide actionable insights about:
 
 Keep the response professional, concise, and focused on actionable insights. Highlight the most significant trends and patterns.`;
 
-    // Try REST API with smart model selection and quota handling
+    // Try REST API with smart model selection
     try {
       const availableModels = await getAvailableModels();
       
-      // Filter out non-existent models and prioritize working models
-      const validModels = availableModels.filter(m => 
-        !m.includes("gemini-1.5-flash-001") && 
-        !m.includes("gemini-1.5")
-      );
+      // Prioritize flash models (faster and more quota-friendly)
+      const prioritizedModels = availableModels.length > 0 
+        ? availableModels.filter(m => m.includes("flash") || m.includes("pro"))
+        : ["gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro"];
       
-      // Prioritize models: prefer flash-lite models (less rate limited), then flash, then pro
-      const prioritizedModels = [
-        ...validModels.filter(m => m.includes("flash-lite")),
-        ...validModels.filter(m => m.includes("flash") && !m.includes("flash-lite")),
-        ...validModels.filter(m => m.includes("pro")),
-        ...validModels.filter(m => !m.includes("flash") && !m.includes("pro"))
-      ];
+      // Try up to 3 models
+      const modelsToTry = prioritizedModels.slice(0, 3);
       
-      // Try up to 3 models - if one has quota exceeded, try the next one
-      const modelsToTry = prioritizedModels.length > 0 
-        ? prioritizedModels.slice(0, 3) // Try up to 3 models
-        : ["gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-2.5-flash"];
-      
-      // Try v1 first (more stable)
-      const apiVersions = ["v1"];
-      
-      let lastQuotaError = null;
+      const apiVersions = ["v1beta", "v1"];
       
       for (const modelName of modelsToTry) {
         for (const version of apiVersions) {
@@ -633,7 +630,7 @@ Keep the response professional, concise, and focused on actionable insights. Hig
                 headers: {
                   "Content-Type": "application/json"
                 },
-                timeout: 30000 // 30 second timeout
+                timeout: 30000
               }
             );
 
@@ -644,55 +641,29 @@ Keep the response professional, concise, and focused on actionable insights. Hig
             }
           } catch (error) {
             const status = error.response?.status;
-            const errorDetails = error.response?.data?.error?.details || [];
             const errorMessage = error.message || '';
             
-            // Check if it's a quota exceeded error
-            const quotaExceeded = errorDetails.some(detail => 
-              detail['@type']?.includes('QuotaFailure') || 
-              detail['@type']?.includes('Quota')
-            ) || errorMessage.includes('quota') || 
-              errorMessage.includes('Quota exceeded') ||
-              errorMessage.includes('exceeded your current quota');
-            
-            if (quotaExceeded) {
+            // Check for quota errors
+            if (status === 429 || errorMessage.includes('quota') || errorMessage.includes('Quota')) {
               console.log(`Quota exceeded for ${modelName}. Trying next model...`);
-              lastQuotaError = modelName;
-              // Break out of version loop and try next model
-              break;
+              break; // Try next model
             }
             
-            // If rate limited (429) but not quota, it's temporary - wait and continue
-            if (status === 429 && !quotaExceeded) {
-              console.log(`REST API ${version}/${modelName} temporarily rate limited (429), trying next model...`);
-              break; // Try next model
-            } else if (status !== 429) {
-              console.log(`REST API ${version}/${modelName} failed:`, status || error.message);
-              // Continue to next version or model
-            }
+            console.log(`REST API ${version}/${modelName} failed:`, status || error.message);
           }
         }
         
-        // If we got a successful response, we would have returned already
-        // If we're here, this model failed - continue to next model
-        // Add small delay between models to be safe
+        // Small delay between models
         if (modelName !== modelsToTry[modelsToTry.length - 1]) {
           await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
       
-      // If we tried all models and all had quota exceeded
-      if (lastQuotaError) {
-        console.log(`All tried models have quota exceeded. Last attempted: ${lastQuotaError}`);
-        return `AI analysis quota exceeded for all available models today (20 requests/day limit per model on free tier). The analysis will be available again tomorrow. Dashboard statistics and charts are still available for insights.`;
-      }
-      
     } catch (restError) {
       console.log("REST API failed:", restError.message);
-      // Don't throw, fall through to return graceful message
     }
 
-    // If we get here, all models failed for non-quota reasons
+    // If all attempts failed, return graceful message
     return `AI analysis is currently unavailable. Please try again in a few moments. Dashboard statistics and charts are still available for insights.`;
   } catch (error) {
     console.error("Error analyzing dashboard stats:", error);
@@ -703,7 +674,7 @@ Keep the response professional, concise, and focused on actionable insights. Hig
                         error.status === 429;
     
     if (isQuotaError) {
-      return `AI analysis quota exceeded for today (20 requests/day limit on free tier). Please try again tomorrow or upgrade your API plan. Dashboard statistics are still available.`;
+      return `AI analysis quota exceeded for today. Please try again tomorrow. Dashboard statistics are still available.`;
     }
     
     return "Unable to generate AI analysis at this time. Please try again later. Dashboard statistics and charts are still available for insights.";
@@ -718,6 +689,3 @@ module.exports = {
   clearChatHistory,
   analyzeDashboardStats,
 };
-
-
-
