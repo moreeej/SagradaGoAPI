@@ -54,70 +54,13 @@ function normalizeTime(time) {
 }
 
 // Create a new Confession booking
-// const createConfession = async (req, res) => {
-//   try {
-//     const { uid, full_name, email, date, time, attendees } = req.body;
-
-//     // Confession is free, generate a dummy transaction_id
-//     const transaction_id = `CONF-${Date.now()}`;
-
-//     const booking = await ConfessionModel.create({
-//       uid,
-//       full_name,
-//       email,
-//       transaction_id,
-//       date,
-//       time: normalizeTime(time),
-//       attendees,
-//     });
-
-//     // Notify all admins about the new booking
-//     try {
-//       const user = await UserModel.findOne({ uid, is_deleted: false });
-//       if (user) {
-//         const admins = await AdminModel.find({ is_deleted: false }).select("uid");
-//         const adminIds = admins.map((admin) => admin.uid);
-//         if (adminIds.length > 0) {
-//           const userName = full_name || `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
-//           await notifyAllAdmins(
-//             adminIds,
-//             "booking",
-//             "New Confession Booking",
-//             `${userName} has submitted a new Confession booking request.`,
-//             {
-//               action: "BookingHistoryScreen",
-//               metadata: {
-//                 booking_id: booking._id.toString(),
-//                 transaction_id: transaction_id,
-//                 user_id: uid,
-//                 user_name: userName,
-//                 sacrament_type: "Confession",
-//               },
-//               priority: "high",
-//             }
-//           );
-//         }
-//       }
-//     } catch (notificationError) {
-//       console.error("Error sending admin notifications for confession booking:", notificationError);
-//       // Don't fail the request if notifications fail
-//     }
-
-//     res.status(201).json({ success: true, booking });
-//   } catch (err) {
-//     console.error("Confession booking error:", err);
-//     res.status(500).json({ success: false, message: err.message });
-//   }
-// };
-
 const createConfession = async (req, res) => {
   try {
     const { uid, full_name, email, date, time, attendees } = req.body;
 
-    // Generate dummy transaction ID
+    // Confession is free, generate a dummy transaction_id
     const transaction_id = `CONF-${Date.now()}`;
 
-    // Save booking
     const booking = await ConfessionModel.create({
       uid,
       full_name,
@@ -128,7 +71,7 @@ const createConfession = async (req, res) => {
       attendees,
     });
 
-    // Notify all admins about new booking
+    // Notify all admins about the new booking
     try {
       const user = await UserModel.findOne({ uid, is_deleted: false });
       if (user) {
@@ -156,30 +99,25 @@ const createConfession = async (req, res) => {
         }
       }
     } catch (notificationError) {
-      console.error("Error sending admin notifications:", notificationError);
+      console.error("Error sending admin notifications for confession booking:", notificationError);
+      // Don't fail the request if notifications fail
     }
 
-    // ====== SEND EMAIL TO USER IMMEDIATELY AFTER SUBMIT ======
+    // Send booking received email to user
     try {
-      if (email) {
-        const emailHtml = EmailService.generateBookingReceivedEmail(full_name, "Confession", {
+      const userEmail = email || (await UserModel.findOne({ uid, is_deleted: false }))?.email;
+      if (userEmail) {
+        const emailHtml = EmailService.generateBookingReceivedEmail(full_name || "Valued Parishioner", "Confession", {
           transaction_id,
           date,
           time: normalizeTime(time),
         });
-
-        await EmailService.sendEmail(
-          email,
-          "Confession Booking Received - Sagrada Familia Parish",
-          emailHtml
-        );
-
-        console.log(`Booking confirmation email sent to: ${email}`);
+        await EmailService.sendEmail(userEmail, "Confession Booking Received - Sagrada Familia Parish", emailHtml, null, full_name);
+        console.log("Booking confirmation email sent to:", userEmail);
       }
     } catch (emailError) {
       console.error("Error sending booking confirmation email:", emailError);
     }
-    // ========================================================
 
     res.status(201).json({ success: true, booking });
   } catch (err) {

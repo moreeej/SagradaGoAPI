@@ -11,43 +11,34 @@ Email notifications have been added to the Sagrada Familia Parish system for adm
 Add these variables to your `.env` file:
 
 ```bash
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-parish-email@gmail.com
-SMTP_PASS=your-app-password
+# Brevo (Transactional Email) Configuration
+BREVO_API_KEY=your-brevo-api-key
+BREVO_FROM_EMAIL=your-verified-sender-email@yourdomain.com
+
+# Optional - sender display name
 SMTP_FROM_NAME=Sagrada Familia Parish
-SMTP_FROM_EMAIL=your-parish-email@gmail.com
+
+# Legacy - also supported for sender email
+SMTP_FROM_EMAIL=your-verified-sender-email@yourdomain.com
 ```
 
-## Gmail Setup Instructions
+## Brevo Setup Instructions
 
-1. **Enable 2-Factor Authentication** on your Gmail account
-2. **Generate an App Password**:
-   - Go to Google Account settings
-   - Security → 2-Step Verification → App passwords
-   - Generate a new app password for "Mail"
-   - Use this app password (not your regular password) in `SMTP_PASS`
-
-## Other Email Providers
-
-### Outlook/Hotmail
-```bash
-SMTP_HOST=smtp-mail.outlook.com
-SMTP_PORT=587
-```
-
-### Yahoo
-```bash
-SMTP_HOST=smtp.mail.yahoo.com
-SMTP_PORT=587
-```
-
-### Custom SMTP Server
-```bash
-SMTP_HOST=your-smtp-server.com
-SMTP_PORT=587  # or 465 for SSL
-```
+1. **Create a Brevo account** at [brevo.com](https://www.brevo.com/)
+2. **Get your API key**:
+   - Go to Brevo Dashboard → SMTP & API → API Keys
+   - Create a new API key (or use an existing one)
+   - Copy the key (starts with `xkeysib-`)
+3. **Verify your sender email**:
+   - Go to Brevo → Senders & IP
+   - Add and verify the email address you want to send from
+   - Use this verified email in `BREVO_FROM_EMAIL` or `SMTP_FROM_EMAIL`
+4. **Add to `.env`**:
+   ```bash
+   BREVO_API_KEY=xkeysib-your-actual-key-here
+   BREVO_FROM_EMAIL=parish@yourdomain.com
+   SMTP_FROM_NAME=Sagrada Familia Parish
+   ```
 
 ## Email Templates Included
 
@@ -71,8 +62,7 @@ SMTP_PORT=587  # or 465 for SSL
 ## Files Modified
 
 ### Backend Changes:
-1. **Added Dependencies**: `nodemailer@^6.9.8` in `package.json`
-2. **New Service**: `services/EmailService.js` - Handles email sending and templates
+1. **Email Service**: `services/EmailService.js` - Uses Brevo Transactional API (no nodemailer required)
 3. **Updated Controllers**:
    - `controllers/AdminDonationController.js` - Donation confirmations/rejections
    - `controllers/VolunteerController.js` - Volunteer confirmations/rejections
@@ -115,8 +105,8 @@ Monitor console output for email sending status:
 ## Troubleshooting
 
 ### Common Issues:
-1. **Authentication Error**: Check app password setup
-2. **Connection Timeout**: Verify SMTP host and port
+1. **Authentication Error**: Verify `BREVO_API_KEY` is correct and not expired
+2. **Sender Not Verified**: Ensure your sender email is verified in Brevo dashboard
 3. **No Email Sent**: Check if user has valid email address
 4. **Template Issues**: Check console for HTML generation errors
 
@@ -127,10 +117,9 @@ Monitor console output for email sending status:
 
 ## Security Notes
 
-- Never commit real email credentials to git
-- Use app passwords, not regular passwords
-- Consider using environment-specific email addresses
-- Monitor email sending quotas for your provider
+- Never commit your Brevo API key to git (keep it in `.env` only)
+- Ensure your sender email is verified in Brevo
+- Brevo free tier includes 300 emails/day
 
 ## Future Enhancements
 

@@ -691,7 +691,6 @@ async function createBaptism(req, res) {
       amount: parseFloat(amount) || 0,
     };
 
-    // Log the data being saved for debugging
     console.log(
       "Baptism data being saved:",
       JSON.stringify(baptismData, null, 2)
@@ -699,7 +698,6 @@ async function createBaptism(req, res) {
 
     const newBaptism = new BaptismModel(baptismData);
 
-    // Validate before saving
     const validationError = newBaptism.validateSync();
     if (validationError) {
       console.error("Validation error:", validationError);
@@ -714,34 +712,8 @@ async function createBaptism(req, res) {
 
     await newBaptism.save();
 
-    // ===== SEND CONFIRMATION EMAIL TO USER =====
-    try {
-      if (user.email) {
-        const emailHtml = EmailService.generateBookingReceivedEmail(
-          `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim(),
-          "Baptism",
-          {
-            transaction_id,
-            date: baptismData.date,
-            time: baptismData.time,
-          }
-        );
-
-        await EmailService.sendEmail(
-          user.email,
-          "Baptism Booking Received - Sagrada Familia Parish",
-          emailHtml
-        );
-
-        console.log(`Baptism booking confirmation email sent to: ${user.email}`);
-      }
-    } catch (emailError) {
-      console.error("Error sending baptism booking confirmation email:", emailError);
-      // Don't fail the request if email sending fails
-    }
-
     // Notify all admins about the new booking
-    try { 
+    try {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
       const adminIds = admins.map((admin) => admin.uid);
       if (adminIds.length > 0) {
@@ -772,6 +744,23 @@ async function createBaptism(req, res) {
         notificationError
       );
       // Don't fail the request if notifications fail
+    }
+
+    // Send booking received email to user
+    try {
+      const userEmail = user.email || '';
+      if (userEmail) {
+        const userName = `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim();
+        const emailHtml = EmailService.generateBookingReceivedEmail(userName, "Baptism", {
+          transaction_id,
+          date: baptismData.date,
+          time: baptismData.time,
+        });
+        await EmailService.sendEmail(userEmail, "Baptism Booking Received - Sagrada Familia Parish", emailHtml, null, userName);
+        console.log("Booking confirmation email sent to:", userEmail);
+      }
+    } catch (emailError) {
+      console.error("Error sending booking confirmation email:", emailError);
     }
 
     res
@@ -1271,32 +1260,6 @@ async function AddBaptismalWeb(req, res) {
 
     // SAVE TO DB
     const savedBaptismal = await newBaptismal.save();
-
-    // ===== SEND CONFIRMATION EMAIL TO USER =====
-    try {
-      if (email) {
-        const emailHtml = EmailService.generateBookingReceivedEmail(
-          fullname,
-          "Baptism",
-          {
-            transaction_id,
-            date,
-            time,
-          }
-        );
-
-        await EmailService.sendEmail(
-          email,
-          "Baptism Booking Received - Sagrada Familia Parish",
-          emailHtml
-        );
-
-        console.log(`Baptism booking confirmation email sent to: ${email}`);
-      }
-    } catch (emailError) {
-      console.error("Error sending baptism booking confirmation email:", emailError);
-      // Don't fail the request if email sending fails
-    }
 
     res.status(201).json({
       success: true,

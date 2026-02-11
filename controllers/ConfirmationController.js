@@ -135,35 +135,6 @@ async function createConfirmation(req, res) {
     const newConfirmation = new ConfirmationModel(confirmationData);
     await newConfirmation.save();
 
-    // ===== SEND CONFIRMATION EMAIL TO USER =====
-    try {
-      if (user.email) {
-        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
-        const emailHtml = EmailService.generateBookingReceivedEmail(
-          userName,
-          "Confirmation",
-          {
-            transaction_id,
-            date,
-            time: normalizeTime(time),
-            attendees,
-            sponsor_name: sponsor_name || ''
-          }
-        );
-
-        await EmailService.sendEmail(
-          user.email,
-          "Confirmation Booking Received - Sagrada Familia Parish",
-          emailHtml
-        );
-
-        console.log(`Confirmation booking email sent to: ${user.email}`);
-      }
-    } catch (emailError) {
-      console.error("Error sending confirmation booking email:", emailError);
-      // Don't fail the request if email sending fails
-    }
-
     // Notify all admins about the new booking
     try {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
@@ -191,6 +162,23 @@ async function createConfirmation(req, res) {
     } catch (notificationError) {
       console.error("Error sending admin notifications for confirmation booking:", notificationError);
       // Don't fail the request if notifications fail
+    }
+
+    // Send booking received email to user
+    try {
+      const userEmail = user.email || '';
+      if (userEmail) {
+        const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
+        const emailHtml = EmailService.generateBookingReceivedEmail(userName, "Confirmation", {
+          transaction_id,
+          date: confirmationData.date,
+          time: confirmationData.time,
+        });
+        await EmailService.sendEmail(userEmail, "Confirmation Booking Received - Sagrada Familia Parish", emailHtml, null, userName);
+        console.log("Booking confirmation email sent to:", userEmail);
+      }
+    } catch (emailError) {
+      console.error("Error sending booking confirmation email:", emailError);
     }
 
     res.status(201).json({ message: "Confirmation booking created successfully.", confirmation: newConfirmation, transaction_id });

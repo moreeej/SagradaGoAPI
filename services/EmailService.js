@@ -1,69 +1,28 @@
-let nodemailer;
+let brevoApiInstance = null;
+
 try {
-  nodemailer = require("nodemailer");
+  const { TransactionalEmailsApi } = require("@getbrevo/brevo");
+  const apiInstance = new TransactionalEmailsApi();
+  apiInstance.authentications.apiKey.apiKey = process.env.BREVO_API_KEY || "";
+  brevoApiInstance = apiInstance;
 } catch (err) {
-  console.error("Nodemailer not found. Please run: npm install nodemailer");
-  nodemailer = null;
+  console.warn("Brevo SDK not found. Run: npm install @getbrevo/brevo");
 }
 
 class EmailService {
   constructor() {
-    this.transporter = null;
-    this.isInitialized = false;
-    this.initializeTransporter();
-  }
-
-  initializeTransporter() {
-    try {
-      // Check if nodemailer is available
-      if (!nodemailer || typeof nodemailer.createTransport !== 'function') {
-        console.warn("Nodemailer is not available. Email functionality will be disabled.");
-        console.warn("Please run: npm install nodemailer");
-        return;
-      }
-
-      // Check if SMTP credentials are configured
-      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        console.warn("SMTP credentials not configured. Email functionality will be disabled.");
-        console.warn("Please add SMTP_USER and SMTP_PASS to your .env file.");
-        return;
-      }
-
-      // Configure email transporter based on environment variables
-      const emailConfig = {
-        host: process.env.SMTP_HOST || "smtp.gmail.com",
-        port: parseInt(process.env.SMTP_PORT) || 587,
-        secure: false, // true for 465, false for other ports
-        auth: {
-          user: process.env.SMTP_USER, // Your email
-          pass: process.env.SMTP_PASS, // Your app password (for Gmail, generate an app password)
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      };
-
-      this.transporter = nodemailer.createTransport(emailConfig);
-      this.isInitialized = true;
-
-      this.transporter.verify((error, success) => {
-        if (error) {
-          console.error("Email service configuration error:", error);
-
-        } else {
-          console.log("Email service is ready to send messages");
-        }
-      });
-      
-    } catch (error) {
-      console.error("Failed to initialize email transporter:", error);
+    this.isInitialized = !!process.env.BREVO_API_KEY && !!brevoApiInstance;
+    if (!this.isInitialized) {
+      console.warn("Brevo API key not configured. Add BREVO_API_KEY to .env");
+    } else {
+      console.log("Brevo email service is ready to send messages");
     }
   }
 
-  async sendEmail(to, subject, htmlContent, textContent = null) {
+  async sendEmail(to, subject, htmlContent, textContent = null, toName = "User") {
     try {
-      if (!this.isInitialized || !this.transporter) {
-        console.warn("Email service not initialized. Skipping email send.");
+      if (!this.isInitialized || !brevoApiInstance) {
+        console.warn("Brevo email service not initialized. Skipping email send.");
         return { success: false, error: "Email service not initialized" };
       }
 
@@ -72,20 +31,33 @@ class EmailService {
         return { success: false, error: "Missing required email parameters" };
       }
 
-      const mailOptions = {
-        from: `"${process.env.SMTP_FROM_NAME || 'Sagrada Familia Parish'}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`,
-        to: to,
-        subject: subject,
-        html: htmlContent,
-        text: textContent || this.stripHtml(htmlContent),
+      const fromEmail = process.env.BREVO_FROM_EMAIL || process.env.SMTP_FROM_EMAIL;
+      const fromName = process.env.SMTP_FROM_NAME || "Sagrada Familia Parish";
+      if (!fromEmail) {
+        console.warn("Sender email not configured. Add BREVO_FROM_EMAIL to .env");
+        return { success: false, error: "Sender email not configured" };
+      }
+
+      const sendSmtpEmail = {
+        sender: { email: fromEmail, name: fromName },
+        to: [{ email: to, name: toName || "User" }],
+        subject,
+        htmlContent,
+        textContent: textContent || this.stripHtml(htmlContent),
+        headers: {
+          "X-Mailer": "Sagrada Familia Parish",
+          "X-Priority": "3",
+          "X-MSMail-Priority": "Normal",
+          Importance: "Normal",
+        },
+        replyTo: { email: fromEmail, name: fromName },
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log("Email sent successfully:", result.messageId);
-      return { success: true, messageId: result.messageId };
-
+      const result = await brevoApiInstance.sendTransacEmail(sendSmtpEmail);
+      console.log("✅ Email sent successfully via Brevo:", result.body.messageId);
+      return { success: true, messageId: result.body.messageId };
     } catch (error) {
-      console.error("Error sending email:", error);
+      console.error("❌ Brevo email send failed:", error.message);
       return { success: false, error: error.message };
     }
   }
@@ -366,6 +338,53 @@ class EmailService {
     `;
   }
 
+  generateBookingReceivedEmail(userName, bookingType, bookingDetails) {
+    const { transaction_id, date, time } = bookingDetails;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; }
+          .content { padding: 20px; background-color: #f8f9fa; }
+          .booking-details { background-color: white; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #3498db; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+          .status-received { color: #3498db; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Sagrada Familia Parish</h1>
+            <p>Booking Received</p>
+          </div>
+          <div class="content">
+            <h2>Dear ${userName},</h2>
+            <p>Your <strong>${bookingType}</strong> booking has been successfully received!</p>
+            
+            <div class="booking-details">
+              <h3>Booking Details:</h3>
+              <p><strong>Transaction ID:</strong> ${transaction_id}</p>
+              <p><strong>Date:</strong> ${date ? new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBA'}</p>
+              <p><strong>Time:</strong> ${time || 'TBA'}</p>
+              <p><strong>Status:</strong> <span class="status-received">Received</span></p>
+            </div>
+
+            <p>We will notify you once your booking is approved by the parish admin.</p>
+            <p>Thank you for booking with us!</p>
+          </div>
+          <div class="footer">
+            <p>Sagrada Familia Parish</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
   generateVolunteerRejectionEmail(userName, volunteerDetails, reason = null) {
     const { eventTitle, registration_type } = volunteerDetails;
     const isParticipant = registration_type === "participant";
@@ -415,53 +434,6 @@ class EmailService {
           <div class="footer">
             <p>Sagrada Familia Parish<br>
             Thank you for your heart to serve.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  generateBookingReceivedEmail(userName, bookingType, bookingDetails) {
-    const { transaction_id, date, time } = bookingDetails;
-
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #2c3e50; color: white; padding: 20px; text-align: center; }
-          .content { padding: 20px; background-color: #f8f9fa; }
-          .booking-details { background-color: white; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #3498db; }
-          .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
-          .status-received { color: #3498db; font-weight: bold; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>Sagrada Familia Parish</h1>
-            <p>Booking Received</p>
-          </div>
-          <div class="content">
-            <h2>Dear ${userName},</h2>
-            <p>Your <strong>${bookingType}</strong> booking has been successfully received!</p>
-            
-            <div class="booking-details">
-              <h3>Booking Details:</h3>
-              <p><strong>Transaction ID:</strong> ${transaction_id}</p>
-              <p><strong>Date:</strong> ${new Date(date).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' })}</p>
-              <p><strong>Time:</strong> ${time || 'TBA'}</p>
-              <p><strong>Status:</strong> <span class="status-received">Received</span></p>
-            </div>
-
-            <p>We will notify you once your booking is approved by the parish admin.</p>
-            <p>Thank you for booking with us!</p>
-          </div>
-          <div class="footer">
-            <p>Sagrada Familia Parish</p>
           </div>
         </div>
       </body>

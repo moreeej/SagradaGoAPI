@@ -186,30 +186,6 @@ async function createCommunion(req, res) {
     const newCommunion = new CommunionModel(communionData);
     await newCommunion.save();
 
-    // ====== SEND EMAIL TO USER IMMEDIATELY AFTER SUBMIT ======
-    try {
-      const userEmail = user.email;
-      const userName = `${user.first_name} ${user.middle_name || ''} ${user.last_name}`.trim();
-
-      if (userEmail) {
-        const emailHtml = EmailService.generateBookingReceivedEmail(userName, "First Communion", {
-          transaction_id,
-          date,
-          time: normalizeTime(time),
-        });
-
-        await EmailService.sendEmail(
-          userEmail,
-          "First Communion Booking Received - Sagrada Familia Parish",
-          emailHtml
-        );
-
-        console.log(`Communion booking confirmation email sent to: ${userEmail}`);
-      }
-    } catch (emailError) {
-      console.error("Error sending communion booking confirmation email:", emailError);
-    }
-
     // Notify all admins about the new booking
     try {
       const admins = await AdminModel.find({ is_deleted: false }).select("uid");
@@ -242,6 +218,23 @@ async function createCommunion(req, res) {
         notificationError
       );
       // Don't fail the request if notifications fail
+    }
+
+    // Send booking received email to user
+    try {
+      const userEmail = user.email || '';
+      if (userEmail) {
+        const userName = `${user.first_name} ${user.middle_name || ""} ${user.last_name}`.trim();
+        const emailHtml = EmailService.generateBookingReceivedEmail(userName, "First Communion", {
+          transaction_id,
+          date,
+          time: communionData.time,
+        });
+        await EmailService.sendEmail(userEmail, "First Communion Booking Received - Sagrada Familia Parish", emailHtml, null, userName);
+        console.log("Booking confirmation email sent to:", userEmail);
+      }
+    } catch (emailError) {
+      console.error("Error sending booking confirmation email:", emailError);
     }
 
     res
@@ -798,27 +791,6 @@ async function createCommunionWeb(req, res) {
 
     // SAVE TO DB
     const savedCommunion = await newCommunion.save();
-
-    // ====== SEND EMAIL TO USER IMMEDIATELY AFTER SUBMIT ======
-    try {
-      if (email) {
-        const emailHtml = EmailService.generateBookingReceivedEmail(full_name, "First Communion", {
-          transaction_id,
-          date,
-          time: normalizeTime(time),
-        });
-
-        await EmailService.sendEmail(
-          email,
-          "First Communion Booking Received - Sagrada Familia Parish",
-          emailHtml
-        );
-
-        console.log(`Communion booking confirmation email sent to: ${email}`);
-      }
-    } catch (emailError) {
-      console.error("Error sending communion booking confirmation email:", emailError);
-    }
 
     res.status(201).json({
       success: true,
