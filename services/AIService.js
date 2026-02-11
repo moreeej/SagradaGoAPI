@@ -379,11 +379,9 @@ async function getAIResponse(userMessage, userId) {
       
       // Try different model names that might work (using valid models)
       const fallbackModels = [
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash-lite",
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-2.5-pro"
+        "gemini-2.0-flash-exp",
+        "gemini-1.5-flash-8b",
+        "gemini-exp-1206"
       ];
       
       // Remove the model that already failed (if we know which one)
