@@ -307,65 +307,83 @@ exports.clearAIChatHistory = async (req, res) => {
 
 
 
-exports.addMessageWeb = async (req, res) => {
+// exports.addMessageWeb = async (req, res) => {
 
-  const { senderId, senderType, senderName, userId, message } = req.body;
-  console.log("message", message);
-  console.log("senderId", senderId);
-  console.log("senderType", senderType);
-  console.log("senderName", senderName);
-  console.log("userId", userId);
+//   const { senderId, senderType, senderName, userId, message } = req.body;
+//   console.log("message", message);
+//   console.log("senderId", senderId);
+//   console.log("senderType", senderType);
+//   console.log("senderName", senderName);
+//   console.log("userId", userId);
 
-  try {
-    let chat = await ChatModel.findOne({ userId, isActive: true });
+//   try {
+//     let chat = await ChatModel.findOne({ userId, isActive: true });
 
-    if (!chat) {
-      // Get user info if chat doesn't exist
-      const user = await UserModel.findOne({ uid: userId, is_deleted: false });
+//     if (!chat) {
+//       // Get user info if chat doesn't exist
+//       const user = await UserModel.findOne({ uid: userId, is_deleted: false });
       
-      if (!user) {
-        throw new Error("User not found");
-      }
+//       if (!user) {
+//         throw new Error("User not found");
+//       }
 
-      chat = new ChatModel({
-        userId: user.uid,
-        userName: `${user.first_name} ${user.last_name}`,
-        userEmail: user.email,
-        messages: [],
-        isActive: true,
-      });
-    }
+//       chat = new ChatModel({
+//         userId: user.uid,
+//         userName: `${user.first_name} ${user.last_name}`,
+//         userEmail: user.email,
+//         messages: [],
+//         isActive: true,
+//       });
+//     }
 
-    // Add message
-    const newMessage = {
-      senderId,
-      senderType,
-      senderName,
-      message,
-      timestamp: new Date(),
-      read: false,
-    };
+//     // Add message
+//     const newMessage = {
+//       senderId,
+//       senderType,
+//       senderName,
+//       message,
+//       timestamp: new Date(),
+//       read: false,
+//     };
 
-    chat.messages.push(newMessage);
-    chat.lastMessage = new Date();
-    console.log(chat);
+//     chat.messages.push(newMessage);
+//     chat.lastMessage = new Date();
+//     console.log(chat);
     
 
-    // Update unread count if message is from user
-    if (senderType === "user") {
-      chat.unreadCount = (chat.unreadCount || 0) + 1;
-    } else if (senderType === "admin") {
-      // Reset unread count when admin sends message
-      chat.unreadCount = 0;
-    }
+//     // Update unread count if message is from user
+//     if (senderType === "user") {
+//       chat.unreadCount = (chat.unreadCount || 0) + 1;
+//     } else if (senderType === "admin") {
+//       // Reset unread count when admin sends message
+//       chat.unreadCount = 0;
+//     }
 
-    await chat.save();
-    return chat;
+//     await chat.save();
+//     return chat;
+//   } catch (error) {
+//     console.error("Error adding message:", error);
+//     throw error;
+//   }
+// };
+
+exports.addMessageWeb = async (req, res) => {
+  const { senderId, senderType, senderName, userId, message } = req.body;
+
+  console.log("Web payload:", req.body);
+
+  if (!senderId || !senderType || !userId || !message) {
+    return res.status(400).json({ error: "Missing required fields" });
+  }
+
+  try {
+    // Reuse the mobile function
+    const chat = await addMessage(senderId, senderType, senderName, userId, message);
+    res.json({ success: true, chat });
   } catch (error) {
-    console.error("Error adding message:", error);
-    throw error;
+    console.error("addMessageWeb error:", error);
+    res.status(500).json({ error: error.message });
   }
 };
-
 
 
