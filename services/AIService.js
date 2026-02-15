@@ -75,9 +75,7 @@ async function getAvailableModels() {
       return models;
     }
   } catch (error) {
-    console.log("Failed to list models from v1 API, trying v1beta:", error.response?.status || error.message);
-    
-    // Try v1beta as fallback
+    // Try v1beta as fallback (no log; list often returns 400 in some regions)
     try {
       const response = await axios.get(
         `https://generativelanguage.googleapis.com/v1beta/models?key=${geminiApiKey}`,
@@ -93,11 +91,11 @@ async function getAvailableModels() {
           .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"))
           .map(m => m.name.replace("models/", ""));
         cachedAvailableModels = models;
-        console.log("Available models (v1beta):", models);
+        console.log("Available models:", models);
         return models;
       }
     } catch (betaError) {
-      console.error("Failed to list models from v1beta API:", betaError.response?.status || betaError.message);
+      // List failed (e.g. region restriction); generateContent will use known models
     }
   }
 
@@ -118,9 +116,6 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
   // When list-models fails (e.g. 400 on Render), use fixed list and v1 only (avoids v1beta geo blocks)
   const modelsToTry = availableModels.length > 0 ? availableModels : KNOWN_WORKING_MODELS;
   const useV1Only = availableModels.length === 0;
-  if (useV1Only) {
-    console.log("Could not list models, trying known models with v1 API:", modelsToTry.join(", "));
-  }
 
   if (modelsToTry.length > 0 && useV1Only) {
     let fullPrompt = SYSTEM_PROMPT + "\n\n";
@@ -149,7 +144,6 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
       } catch (err) {
         lastError = err;
         if (isLocationNotSupportedError(err)) {
-          console.log("REST API v1: location not supported - returning user message");
           throw new Error("LOCATION_NOT_SUPPORTED");
         }
         console.log("REST API v1 model", modelName, "failed:", err.response?.status || err.message);
@@ -318,8 +312,6 @@ async function getAIResponse(userMessage, userId) {
     // Retrieve conversation history first
     const conversationHistory = await getConversationHistory(userId);
 
-    // Try REST API first (v1 when list fails; avoids v1beta location blocks)
-    console.log("Trying REST API first...");
     try {
       const aiResponse = await getAIResponseViaREST(userMessage, userId, conversationHistory);
       return aiResponse;
@@ -330,7 +322,6 @@ async function getAIResponse(userMessage, userId) {
       if (restError.message === "No available models found") {
         return "AI service is temporarily unavailable. Please use the 'Chat with Admin' feature for immediate assistance.";
       }
-      console.log("REST API failed, trying SDK:", restError.message);
     }
 
     // Fallback to SDK only when list-models worked (has model list)

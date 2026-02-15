@@ -226,9 +226,11 @@ exports.getUnreadCount = async (req, res) => {
 };
 
 // AI Chatbot endpoint
+// If body.response is provided: client called Gemini in-browser (works on Render); just save and return.
+// Otherwise: server calls Gemini (works on localhost).
 exports.getAIResponse = async (req, res) => {
   try {
-    const { userId, message } = req.body;
+    const { userId, message, response: clientResponse } = req.body;
 
     if (!userId) {
       return res.status(400).json({ message: "userId is required" });
@@ -238,8 +240,15 @@ exports.getAIResponse = async (req, res) => {
       return res.status(400).json({ message: "message is required" });
     }
 
-    // Get AI response
-    const aiResponse = await AIService.getAIResponse(message.trim(), userId);
+    const trimmedMessage = message.trim();
+
+    if (clientResponse != null && typeof clientResponse === "string") {
+      await AIService.saveMessage(userId, "user", trimmedMessage);
+      await AIService.saveMessage(userId, "assistant", clientResponse);
+      return res.json({ message: clientResponse, success: true });
+    }
+
+    const aiResponse = await AIService.getAIResponse(trimmedMessage, userId);
 
     res.json({ 
       message: aiResponse,
