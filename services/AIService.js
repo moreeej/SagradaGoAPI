@@ -8,6 +8,22 @@ const LOCATION_NOT_SUPPORTED_MSG =
 // Known-working model names (v1 API). Use when list-models returns 400 (e.g. on Render).
 const KNOWN_WORKING_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
 
+/** Check if an error is Google's "User location is not supported" (response body can vary). */
+function isLocationNotSupportedError(err) {
+  const msg =
+    err?.response?.data?.error?.message ||
+    err?.response?.data?.message ||
+    (typeof err?.response?.data === "string" ? err.response.data : "") ||
+    err?.message ||
+    "";
+  const bodyStr =
+    err?.response?.data && typeof err.response.data === "object"
+      ? JSON.stringify(err.response.data)
+      : "";
+  const combined = (msg + " " + bodyStr).toLowerCase();
+  return combined.includes("location") && combined.includes("not supported");
+}
+
 // Initialize Google Gemini client
 let GoogleGenerativeAI;
 let genAI;
@@ -114,6 +130,7 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
     });
     fullPrompt += `User: ${userMessage}\nAssistant:`;
 
+    let lastError = null;
     for (const modelName of modelsToTry) {
       try {
         const url = `https://generativelanguage.googleapis.com/v1/models/${modelName}:generateContent?key=${geminiApiKey}`;
@@ -130,12 +147,16 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
           return aiResponse;
         }
       } catch (err) {
-        const msg = (err.response?.data?.error?.message || err.message || "").toLowerCase();
-        if (msg.includes("location") && msg.includes("not supported")) {
+        lastError = err;
+        if (isLocationNotSupportedError(err)) {
+          console.log("REST API v1: location not supported - returning user message");
           throw new Error("LOCATION_NOT_SUPPORTED");
         }
         console.log("REST API v1 model", modelName, "failed:", err.response?.status || err.message);
       }
+    }
+    if (lastError && isLocationNotSupportedError(lastError)) {
+      throw new Error("LOCATION_NOT_SUPPORTED");
     }
     throw new Error("No available models found");
   }
@@ -185,8 +206,7 @@ async function getAIResponseViaREST(userMessage, userId, conversationHistory) {
           return aiResponse;
         }
       } catch (error) {
-        const msg = (error.response?.data?.error?.message || error.message || "").toLowerCase();
-        if (msg.includes("location") && msg.includes("not supported")) {
+        if (isLocationNotSupportedError(error)) {
           throw new Error("LOCATION_NOT_SUPPORTED");
         }
         console.log(`REST API ${version}/${modelName} failed:`, error.response?.status || error.message);
@@ -298,7 +318,7 @@ async function getAIResponse(userMessage, userId) {
     // Retrieve conversation history first
     const conversationHistory = await getConversationHistory(userId);
 
-    // Try REST API first since SDK models are not working
+    // Try REST API first (v1 when list fails; avoids v1beta location blocks)
     console.log("Trying REST API first...");
     try {
       const aiResponse = await getAIResponseViaREST(userMessage, userId, conversationHistory);
@@ -307,10 +327,13 @@ async function getAIResponse(userMessage, userId) {
       if (restError.message === "LOCATION_NOT_SUPPORTED") {
         return LOCATION_NOT_SUPPORTED_MSG;
       }
+      if (restError.message === "No available models found") {
+        return "AI service is temporarily unavailable. Please use the 'Chat with Admin' feature for immediate assistance.";
+      }
       console.log("REST API failed, trying SDK:", restError.message);
     }
 
-    // Fallback to SDK if REST API fails
+    // Fallback to SDK only when list-models worked (has model list)
     // Check if Gemini is properly initialized
     if (!genAI) {
       const apiKey = process.env.GEMINI_API_KEY;
